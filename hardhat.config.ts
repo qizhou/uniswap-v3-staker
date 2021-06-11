@@ -3,15 +3,23 @@ import '@nomiclabs/hardhat-ethers'
 import '@nomiclabs/hardhat-waffle'
 import '@nomiclabs/hardhat-etherscan'
 import 'hardhat-contract-sizer'
+import 'solidity-coverage'
 
 import { HardhatUserConfig } from 'hardhat/config'
+import { SolcUserConfig } from 'hardhat/types'
 
-const DEFAULT_COMPILER_SETTINGS = {
+const DEFAULT_COMPILER_SETTINGS: SolcUserConfig = {
   version: '0.7.6',
   settings: {
     optimizer: {
       enabled: true,
       runs: 1_000_000,
+      details: {
+        yul: true,
+        yulDetails: {
+          stackAllocation: true,
+        },
+      },
     },
     metadata: {
       bytecodeHash: 'none',
