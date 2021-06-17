@@ -1,6 +1,5 @@
 pragma solidity >=0.5.0;
 
-
 library CumulativeFunction {
     struct Node {
         uint24 left;
@@ -42,7 +41,12 @@ library CumulativeFunction {
         return 0;
     }
 
-    function insertFully(mapping(uint24 => Node) storage self, uint24 child, uint24 x, uint208 v) internal returns (uint24 y) {
+    function insertFully(
+        mapping(uint24 => Node) storage self,
+        uint24 child,
+        uint24 x,
+        uint208 v
+    ) internal returns (uint24 y) {
         y = findCommon(x, child);
 
         if (child < y) {
@@ -68,14 +72,19 @@ library CumulativeFunction {
         }
     }
 
-    function add(mapping(uint24 => Node) storage self, uint256 nbits, uint24 x, uint208 v) internal {
-         require(x != 0, "x cannot be zero");
+    function add(
+        mapping(uint24 => Node) storage self,
+        uint256 nbits,
+        uint24 x,
+        uint208 v
+    ) internal {
+        require(x != 0, 'x cannot be zero');
 
-         uint24 cx = 0;
-         uint24 child = uint24(1 << (nbits - 1));
-         uint24 p = 0;
+        uint24 cx = 0;
+        uint24 child = uint24(1 << (nbits - 1));
+        uint24 p = 0;
 
-         for (uint256 i = nbits - 1; i >= 0; i--) {
+        for (uint256 i = nbits - 1; i >= 0; i--) {
             cx = cx + uint24(1 << i);
 
             if (x == cx) {
@@ -115,10 +124,14 @@ library CumulativeFunction {
             if (i == 0) {
                 break;
             }
-         }
+        }
     }
 
-    function get(mapping(uint24 => Node) storage self, uint256 nbits, uint24 x) internal view returns (uint208) {
+    function get(
+        mapping(uint24 => Node) storage self,
+        uint256 nbits,
+        uint24 x
+    ) internal view returns (uint208) {
         uint24 cx = uint24(1 << (nbits - 1));
         uint208 v = 0;
 
@@ -141,13 +154,14 @@ library CumulativeFunction {
 }
 
 contract CumulativeFunctionTest {
-
     mapping(uint24 => CumulativeFunction.Node) public cf;
     uint256 public nbits;
 
     using CumulativeFunction for mapping(uint24 => CumulativeFunction.Node);
 
-    constructor(uint256 _nbits) { nbits = _nbits; }
+    constructor(uint256 _nbits) {
+        nbits = _nbits;
+    }
 
     function findCommon(uint24 x, uint24 y) public pure returns (uint24) {
         return CumulativeFunction.findCommon(x, y);

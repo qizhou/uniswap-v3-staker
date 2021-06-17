@@ -53,6 +53,9 @@ const config: HardhatUserConfig = {
     disambiguatePaths: true,
     runOnCompile: false,
   },
+  mocha: {
+    grep: '',
+  }
 }
 
 export default config
