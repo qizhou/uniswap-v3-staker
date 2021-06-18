@@ -6,10 +6,12 @@ import './interfaces/IUniversalV3Staker.sol';
 import './interfaces/IRewardCalculator.sol';
 import './libraries/RewardMath.sol';
 import './libraries/NFTPositionInfo.sol';
+import './libraries/CumulativeFunction.sol';
 
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol';
+import '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 
 import '@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol';
 import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
@@ -71,6 +73,17 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
     /// @dev stakes[tokenId][incentiveHash] => Stake
     mapping(uint256 => mapping(bytes32 => Stake)) private _stakes;
 
+    // @dev used for cumulative function tree manipulation, controlled by price volatility
+    uint256 private cfNbits;
+    // @dev unsigned tick => liquidity left boundary
+    mapping(uint24 => CumulativeFunction.Node) private _cumulativeLiquidityLower;
+    // @dev unsigned tick => liquidity right boundary
+    mapping(uint24 => CumulativeFunction.Node) private _cumulativeLiquidityUpper;
+    // @dev unsigned tick => accumulated rewards
+    mapping(uint24 => CumulativeFunction.Node) private _cumulativeAccumulatedRewards;
+
+    using CumulativeFunction for mapping(uint24 => CumulativeFunction.Node);
+
     /// @inheritdoc IUniversalV3Staker
     function stakes(uint256 tokenId, bytes32 incentiveId)
         public
@@ -94,16 +107,19 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
     /// @param _nonfungiblePositionManager the NFT position manager contract address
     /// @param _maxIncentiveStartLeadTime the max duration of an incentive in seconds
     /// @param _maxIncentiveDuration the max amount of seconds into the future the incentive startTime can be set
+    /// @param _cfNbits cumulative function tree parameter
     constructor(
         IUniswapV3Factory _factory,
         INonfungiblePositionManager _nonfungiblePositionManager,
         uint256 _maxIncentiveStartLeadTime,
-        uint256 _maxIncentiveDuration
+        uint256 _maxIncentiveDuration,
+        uint256 _cfNbits
     ) {
         factory = _factory;
         nonfungiblePositionManager = _nonfungiblePositionManager;
         maxIncentiveStartLeadTime = _maxIncentiveStartLeadTime;
         maxIncentiveDuration = _maxIncentiveDuration;
+        cfNbits = _cfNbits;
     }
 
     /// @inheritdoc IUniversalV3Staker
@@ -355,9 +371,21 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         if (calculatedRewards == 0) return;
 
         rewardUpdatedAt = timestamp;
+        // TODO: math check
+        uint24 tickBeforeUpdate = uint24(lastTick - TickMath.MIN_TICK + 1);
         lastTick = tick;
 
-        // TODO: calculate eligible rewards based on liquidity
+        uint208 liquidityBegin = _cumulativeLiquidityLower.get(cfNbits, tickBeforeUpdate);
+        uint208 liquidityEnd = _cumulativeLiquidityUpper.get(cfNbits, tickBeforeUpdate);
+        uint208 liquidity = liquidityBegin - liquidityEnd;
+        require(liquidity <= liquidityBegin, 'UniswapV3Staker::updatePrice: overflow');
+        if (liquidity == 0) return;
+
+        uint256 rewardShare = calculatedRewards / uint256(liquidity);
+        // TODO: math check
+        uint208 rewardShareX208 = uint208(rewardShare);
+        require(uint256(rewardShareX208) == rewardShare, 'UniswapV3Staker::updatePrice: casting');
+        _cumulativeAccumulatedRewards.add(cfNbits, tickBeforeUpdate + 1, rewardShareX208);
     }
 
     /// @dev Stakes a deposited token without doing an ownership check
@@ -403,6 +431,12 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
                 liquidityIfOverflow: 0
             });
         }
+
+        uint24 tickLowerShifted = uint24(tickLower - TickMath.MIN_TICK + 1);
+        uint24 tickUpperShifted = uint24(tickUpper - TickMath.MIN_TICK + 1);
+        // liquidity: uint128 => uint208
+        _cumulativeLiquidityLower.add(cfNbits, tickLowerShifted, uint208(liquidity));
+        _cumulativeLiquidityUpper.add(cfNbits, tickUpperShifted, uint208(liquidity));
 
         emit TokenStaked(tokenId, incentiveId, liquidity);
     }
