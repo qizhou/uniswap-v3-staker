@@ -20,6 +20,7 @@ struct Stake {
   uint160 secondsPerLiquidityInsideInitialX128;
   uint128 liquidity;
 }
+
 ```
 
 State:
