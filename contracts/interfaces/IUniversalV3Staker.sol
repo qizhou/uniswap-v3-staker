@@ -142,6 +142,10 @@ interface IUniversalV3Staker is IERC721Receiver, IMulticall {
         external
         returns (uint256 reward, uint160 secondsInsideX128);
 
+    /// @notice Update reward accumulation based on pool's price update
+    /// @param key The key of the incentive
+    function updatePrice(IncentiveKey memory key) external;
+
     /// @notice Event emitted when a liquidity mining incentive has been created
     /// @param rewardToken The token being distributed as a reward
     /// @param pool The Uniswap V3 pool

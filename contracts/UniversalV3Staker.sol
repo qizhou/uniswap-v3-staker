@@ -240,6 +240,9 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
         require(liquidity != 0, 'UniswapV3Staker::unstakeToken: stake does not exist');
 
+        (, int24 currentTick, , , , , ) = key.pool.slot0();
+        _updatePrice(block.timestamp, currentTick);
+
         Incentive storage incentive = incentives[incentiveId];
 
         deposits[tokenId].numberOfStakes--;
@@ -321,6 +324,26 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         );
     }
 
+    /// @inheritdoc IUniversalV3Staker
+    function updatePrice(IncentiveKey memory key) external override {
+        require(block.timestamp >= key.startTime, 'UniswapV3Staker::updatePrice: incentive not started');
+        require(block.timestamp < key.endTime, 'UniswapV3Staker::updatePrice: incentive ended');
+
+        bytes32 incentiveId = IncentiveId.compute(key);
+        require(
+            incentives[incentiveId].totalRewardUnclaimed > 0,
+            'UniswapV3Staker::updatePrice: non-existent incentive'
+        );
+
+        (, int24 currentTick, , , , , ) = key.pool.slot0();
+        _updatePrice(block.timestamp, currentTick);
+    }
+
+    /// @dev Update can be called either externally or through staking / unstaking
+    function _updatePrice(uint256 timestamp, int24 tick) private {
+        // TODO:
+    }
+
     /// @dev Stakes a deposited token without doing an ownership check
     function _stakeToken(IncentiveKey memory key, uint256 tokenId) private {
         require(block.timestamp >= key.startTime, 'UniswapV3Staker::stakeToken: incentive not started');
@@ -342,6 +365,9 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
         require(pool == key.pool, 'UniswapV3Staker::stakeToken: token pool is not the incentive pool');
         require(liquidity > 0, 'UniswapV3Staker::stakeToken: cannot stake token with 0 liquidity');
+
+        (, int24 currentTick, , , , , ) = key.pool.slot0();
+        _updatePrice(block.timestamp, currentTick);
 
         deposits[tokenId].numberOfStakes++;
         incentives[incentiveId].numberOfStakes++;
