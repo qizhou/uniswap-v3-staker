@@ -375,10 +375,10 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint24 tickBeforeUpdate = uint24(lastTick - TickMath.MIN_TICK + 1);
         lastTick = tick;
 
-        uint208 liquidityBegin = _cumulativeLiquidityLower.get(cfNbits, tickBeforeUpdate);
-        uint208 liquidityEnd = _cumulativeLiquidityUpper.get(cfNbits, tickBeforeUpdate);
-        uint208 liquidity = liquidityBegin - liquidityEnd;
-        require(liquidity <= liquidityBegin, 'UniswapV3Staker::updatePrice: overflow');
+        uint208 liquidityLower = _cumulativeLiquidityLower.get(cfNbits, tickBeforeUpdate);
+        uint208 liquidityUpper = _cumulativeLiquidityUpper.get(cfNbits, tickBeforeUpdate);
+        uint208 liquidity = liquidityLower - liquidityUpper;
+        require(liquidity <= liquidityLower, 'UniswapV3Staker::updatePrice: overflow');
         if (liquidity == 0) return;
 
         uint256 rewardShare = calculatedRewards / uint256(liquidity);
