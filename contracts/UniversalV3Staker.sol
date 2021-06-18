@@ -345,7 +345,11 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
     }
 
     /// @dev Update can be called either externally or through staking / unstaking
-    function _updatePrice(uint256 timestamp, int24 tick, IRewardCalculator rewardCalc) private {
+    function _updatePrice(
+        uint256 timestamp,
+        int24 tick,
+        IRewardCalculator rewardCalc
+    ) private {
         require(timestamp >= rewardUpdatedAt, 'UniswapV3Staker::updatePrice: invalid timestamp');
         uint256 calculatedRewards = rewardCalc.getRewards(rewardUpdatedAt + 1, timestamp);
         if (calculatedRewards == 0) return;
