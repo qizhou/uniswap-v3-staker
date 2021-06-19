@@ -3,6 +3,7 @@ pragma solidity =0.7.6;
 pragma abicoder v2;
 
 import './interfaces/IUniversalV3Staker.sol';
+import './interfaces/IRewardCalculator.sol';
 import './libraries/RewardMath.sol';
 import './libraries/NFTPositionInfo.sol';
 
@@ -56,6 +57,10 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
     uint256 public immutable override maxIncentiveStartLeadTime;
     /// @inheritdoc IUniversalV3Staker
     uint256 public immutable override maxIncentiveDuration;
+    /// @inheritdoc IUniversalV3Staker
+    uint256 public override rewardUpdatedAt;
+    /// @inheritdoc IUniversalV3Staker
+    int24 public override lastTick;
 
     /// @dev bytes32 refers to the return value of IncentiveId.compute
     mapping(bytes32 => Incentive) public override incentives;
@@ -240,6 +245,9 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
         require(liquidity != 0, 'UniswapV3Staker::unstakeToken: stake does not exist');
 
+        (, int24 currentTick, , , , , ) = key.pool.slot0();
+        _updatePrice(block.timestamp, currentTick, key.rewardCalc);
+
         Incentive storage incentive = incentives[incentiveId];
 
         deposits[tokenId].numberOfStakes--;
@@ -321,6 +329,37 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         );
     }
 
+    /// @inheritdoc IUniversalV3Staker
+    function updatePrice(IncentiveKey memory key) external override {
+        require(block.timestamp >= key.startTime, 'UniswapV3Staker::updatePrice: incentive not started');
+        require(block.timestamp < key.endTime, 'UniswapV3Staker::updatePrice: incentive ended');
+
+        bytes32 incentiveId = IncentiveId.compute(key);
+        require(
+            incentives[incentiveId].totalRewardUnclaimed > 0,
+            'UniswapV3Staker::updatePrice: non-existent incentive'
+        );
+
+        (, int24 currentTick, , , , , ) = key.pool.slot0();
+        _updatePrice(block.timestamp, currentTick, key.rewardCalc);
+    }
+
+    /// @dev Update can be called either externally or through staking / unstaking
+    function _updatePrice(
+        uint256 timestamp,
+        int24 tick,
+        IRewardCalculator rewardCalc
+    ) private {
+        require(timestamp >= rewardUpdatedAt, 'UniswapV3Staker::updatePrice: invalid timestamp');
+        uint256 calculatedRewards = rewardCalc.getRewards(rewardUpdatedAt + 1, timestamp);
+        if (calculatedRewards == 0) return;
+
+        rewardUpdatedAt = timestamp;
+        lastTick = tick;
+
+        // TODO: calculate eligible rewards based on liquidity
+    }
+
     /// @dev Stakes a deposited token without doing an ownership check
     function _stakeToken(IncentiveKey memory key, uint256 tokenId) private {
         require(block.timestamp >= key.startTime, 'UniswapV3Staker::stakeToken: incentive not started');
@@ -342,6 +381,9 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
         require(pool == key.pool, 'UniswapV3Staker::stakeToken: token pool is not the incentive pool');
         require(liquidity > 0, 'UniswapV3Staker::stakeToken: cannot stake token with 0 liquidity');
+
+        (, int24 currentTick, , , , , ) = key.pool.slot0();
+        _updatePrice(block.timestamp, currentTick, key.rewardCalc);
 
         deposits[tokenId].numberOfStakes++;
         incentives[incentiveId].numberOfStakes++;

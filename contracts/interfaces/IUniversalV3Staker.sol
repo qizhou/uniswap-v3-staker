@@ -43,6 +43,12 @@ interface IUniversalV3Staker is IERC721Receiver, IMulticall {
     /// @notice The max amount of seconds into the future the incentive startTime can be set
     function maxIncentiveStartLeadTime() external view returns (uint256);
 
+    /// @notice Last timestamp when reward accumulation gets updated
+    function rewardUpdatedAt() external view returns (uint256);
+
+    /// @notice Last price tick when updating reward accumulation
+    function lastTick() external view returns (int24);
+
     /// @notice Represents a staking incentive
     /// @param incentiveId The ID of the incentive computed from its parameters
     /// @return totalRewardUnclaimed The amount of reward token not yet claimed by users
@@ -141,6 +147,10 @@ interface IUniversalV3Staker is IERC721Receiver, IMulticall {
     function getRewardInfo(IncentiveKey memory key, uint256 tokenId)
         external
         returns (uint256 reward, uint160 secondsInsideX128);
+
+    /// @notice Update reward accumulation based on pool's price update
+    /// @param key The key of the incentive
+    function updatePrice(IncentiveKey memory key) external;
 
     /// @notice Event emitted when a liquidity mining incentive has been created
     /// @param rewardToken The token being distributed as a reward

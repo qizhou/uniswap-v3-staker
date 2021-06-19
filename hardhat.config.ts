@@ -55,7 +55,7 @@ const config: HardhatUserConfig = {
   },
   mocha: {
     grep: '',
-  }
+  },
 }
 
 export default config
