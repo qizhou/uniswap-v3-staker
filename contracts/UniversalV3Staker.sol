@@ -384,7 +384,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         // avoid underflow
         uint256 rewardShareX64 = (calculatedRewards << 64) / uint256(liquidity);
         require(uint256(uint208(rewardShareX64)) == rewardShareX64, 'UniswapV3Staker::updatePrice: casting');
-        // i.e. using 207 - 64 = 143 bits to store share
+        // i.e. using  208 - 64 = 144 bits to store shares, with the max to be  2 ^ 144 - 1 = ~10^43, thus 10^25 ether
         _cumulativeAccumulatedRewardsX64.add(cfNbits, tickBeforeUpdate + 1, uint208(rewardShareX64));
     }
 
