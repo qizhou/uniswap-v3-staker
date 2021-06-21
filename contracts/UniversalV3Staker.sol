@@ -79,8 +79,8 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
     mapping(uint24 => CumulativeFunction.Node) private _cumulativeLiquidityLower;
     // @dev unsigned tick => liquidity right boundary
     mapping(uint24 => CumulativeFunction.Node) private _cumulativeLiquidityUpper;
-    // @dev unsigned tick => accumulated rewards
-    mapping(uint24 => CumulativeFunction.Node) private _cumulativeAccumulatedRewards;
+    // @dev unsigned tick => accumulated rewards (shifted 64 bits to avoid underflow)
+    mapping(uint24 => CumulativeFunction.Node) private _cumulativeAccumulatedRewardsX64;
 
     using CumulativeFunction for mapping(uint24 => CumulativeFunction.Node);
 
@@ -381,11 +381,11 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         require(liquidity <= liquidityLower, 'UniswapV3Staker::updatePrice: overflow');
         if (liquidity == 0) return;
 
-        uint256 rewardShare = calculatedRewards / uint256(liquidity);
-        // TODO: math check
-        uint208 rewardShareX208 = uint208(rewardShare);
-        require(uint256(rewardShareX208) == rewardShare, 'UniswapV3Staker::updatePrice: casting');
-        _cumulativeAccumulatedRewards.add(cfNbits, tickBeforeUpdate + 1, rewardShareX208);
+        // avoid underflow
+        uint256 rewardShareX64 = (calculatedRewards << 64) / uint256(liquidity);
+        require(uint256(uint208(rewardShareX64)) == rewardShareX64, 'UniswapV3Staker::updatePrice: casting');
+        // i.e. using 207 - 64 = 143 bits to store share
+        _cumulativeAccumulatedRewardsX64.add(cfNbits, tickBeforeUpdate + 1, uint208(rewardShareX64));
     }
 
     /// @dev Stakes a deposited token without doing an ownership check
@@ -434,7 +434,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
         uint24 tickLowerShifted = uint24(tickLower - TickMath.MIN_TICK + 1);
         uint24 tickUpperShifted = uint24(tickUpper - TickMath.MIN_TICK + 1);
-        // liquidity: uint128 => uint208
+        // liquidity casting uint128 => uint208
         _cumulativeLiquidityLower.add(cfNbits, tickLowerShifted, uint208(liquidity));
         _cumulativeLiquidityUpper.add(cfNbits, tickUpperShifted, uint208(liquidity));
 
