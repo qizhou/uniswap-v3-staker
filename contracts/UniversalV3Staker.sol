@@ -11,6 +11,7 @@ import './libraries/CumulativeFunction.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol';
+import '@uniswap/v3-core/contracts/libraries/BitMath.sol';
 import '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 
 import '@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol';
@@ -73,14 +74,14 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
     /// @dev stakes[tokenId][incentiveHash] => Stake
     mapping(uint256 => mapping(bytes32 => Stake)) private _stakes;
 
-    // @dev used for cumulative function tree manipulation, controlled by price volatility
-    uint256 private cfNbits;
     // @dev unsigned tick => liquidity left boundary
     mapping(uint24 => CumulativeFunction.Node) private _cumulativeLiquidityLower;
     // @dev unsigned tick => liquidity right boundary
     mapping(uint24 => CumulativeFunction.Node) private _cumulativeLiquidityUpper;
     // @dev unsigned tick => accumulated rewards (shifted 64 bits to avoid underflow)
     mapping(uint24 => CumulativeFunction.Node) private _cumulativeAccumulatedRewardsX64;
+    // @dev pool => CF bits used in cumulative function binary tree, dictated by tick size
+    mapping(address => uint256) private _cfNbits;
 
     using CumulativeFunction for mapping(uint24 => CumulativeFunction.Node);
 
@@ -107,19 +108,16 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
     /// @param _nonfungiblePositionManager the NFT position manager contract address
     /// @param _maxIncentiveStartLeadTime the max duration of an incentive in seconds
     /// @param _maxIncentiveDuration the max amount of seconds into the future the incentive startTime can be set
-    /// @param _cfNbits cumulative function tree parameter
     constructor(
         IUniswapV3Factory _factory,
         INonfungiblePositionManager _nonfungiblePositionManager,
         uint256 _maxIncentiveStartLeadTime,
-        uint256 _maxIncentiveDuration,
-        uint256 _cfNbits
+        uint256 _maxIncentiveDuration
     ) {
         factory = _factory;
         nonfungiblePositionManager = _nonfungiblePositionManager;
         maxIncentiveStartLeadTime = _maxIncentiveStartLeadTime;
         maxIncentiveDuration = _maxIncentiveDuration;
-        cfNbits = _cfNbits;
     }
 
     /// @inheritdoc IUniversalV3Staker
@@ -156,6 +154,16 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         TransferHelper.safeTransferFrom(address(key.rewardToken), msg.sender, address(this), reward);
 
         emit IncentiveCreated(key.rewardToken, key.pool, key.startTime, key.endTime, key.refundee, reward);
+
+        if (_cfNbits[address(key.pool)] == 0) {
+            int24 tickSpacing = key.pool.tickSpacing();
+            // similar calculation as in `Tick.tickSpacingToMaxLiquidityPerTick`
+            int24 minTick = (TickMath.MIN_TICK / tickSpacing) * tickSpacing;
+            int24 maxTick = (TickMath.MAX_TICK / tickSpacing) * tickSpacing;
+            uint24 numTicks = uint24((maxTick - minTick) / tickSpacing) + 1;
+            uint8 nbits = BitMath.mostSignificantBit(uint256(numTicks));
+            _cfNbits[address(key.pool)] = uint256(nbits);
+        }
     }
 
     /// @inheritdoc IUniversalV3Staker
@@ -262,7 +270,8 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         require(liquidity != 0, 'UniswapV3Staker::unstakeToken: stake does not exist');
 
         (, int24 currentTick, , , , , ) = key.pool.slot0();
-        _updatePrice(block.timestamp, currentTick, key.rewardCalc);
+        uint256 cfNbits = _cfNbits[address(key.pool)];
+        _updatePrice(block.timestamp, cfNbits, currentTick, key.rewardCalc);
 
         Incentive storage incentive = incentives[incentiveId];
 
@@ -295,6 +304,12 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         delete stake.secondsPerLiquidityInsideInitialX128;
         delete stake.liquidityNoOverflow;
         if (liquidity >= type(uint96).max) delete stake.liquidityIfOverflow;
+
+        uint24 tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
+        uint24 tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
+        // liquidity casting uint128 => uint208
+        _cumulativeLiquidityLower.remove(cfNbits, tickLowerShifted, uint208(liquidity));
+        _cumulativeLiquidityUpper.remove(cfNbits, tickUpperShifted, uint208(liquidity));
         emit TokenUnstaked(tokenId, incentiveId);
     }
 
@@ -357,12 +372,13 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         );
 
         (, int24 currentTick, , , , , ) = key.pool.slot0();
-        _updatePrice(block.timestamp, currentTick, key.rewardCalc);
+        _updatePrice(block.timestamp, _cfNbits[address(key.pool)], currentTick, key.rewardCalc);
     }
 
     /// @dev Update can be called either externally or through staking / unstaking
     function _updatePrice(
         uint256 timestamp,
+        uint256 cfNbits,
         int24 tick,
         IRewardCalculator rewardCalc
     ) private {
@@ -411,7 +427,8 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         require(liquidity > 0, 'UniswapV3Staker::stakeToken: cannot stake token with 0 liquidity');
 
         (, int24 currentTick, , , , , ) = key.pool.slot0();
-        _updatePrice(block.timestamp, currentTick, key.rewardCalc);
+        uint256 cfNbits = _cfNbits[address(key.pool)];
+        _updatePrice(block.timestamp, cfNbits, currentTick, key.rewardCalc);
 
         deposits[tokenId].numberOfStakes++;
         incentives[incentiveId].numberOfStakes++;
