@@ -161,7 +161,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
             int24 minTick = (TickMath.MIN_TICK / tickSpacing) * tickSpacing;
             int24 maxTick = (TickMath.MAX_TICK / tickSpacing) * tickSpacing;
             uint24 numTicks = uint24((maxTick - minTick) / tickSpacing) + 1;
-            uint8 nbits = BitMath.mostSignificantBit(uint256(numTicks));
+            uint8 nbits = BitMath.mostSignificantBit(uint256(numTicks)) + 1;
             _cfNbits[address(key.pool)] = uint256(nbits);
         }
     }
