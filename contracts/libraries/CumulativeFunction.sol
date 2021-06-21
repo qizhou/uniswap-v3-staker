@@ -105,6 +105,7 @@ library CumulativeFunction {
                     }
                 }
                 self[x].value += v;
+                break;
             }
 
             if (cx == child) {
