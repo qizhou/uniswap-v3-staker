@@ -128,6 +128,31 @@ library CumulativeFunction {
         }
     }
 
+    function remove(
+        mapping(uint24 => Node) storage self,
+        uint256 nbits,
+        uint24 x,
+        uint208 v
+    ) internal {
+        require(x != 0, 'x cannot be zero');
+
+        uint24 cx = uint24(1 << (nbits - 1));
+
+        while (cx != 0) {
+            if (x <= cx) {
+                self[cx].value -= v;
+
+                if (x == cx) {
+                    break;
+                }
+
+                cx = self[cx].left;
+            } else {
+                cx = self[cx].right;
+            }
+        }
+    }
+
     function get(
         mapping(uint24 => Node) storage self,
         uint256 nbits,
@@ -174,5 +199,9 @@ contract CumulativeFunctionTest {
 
     function get(uint24 x) external view returns (uint208) {
         return cf.get(nbits, x);
+    }
+
+    function remove(uint24 x, uint208 v) external {
+        cf.remove(nbits, x, v);
     }
 }
