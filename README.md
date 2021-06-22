@@ -1,14 +1,14 @@
-# uniswap-v3-staker
+# Universal uniswap-v3-staker
 
-This is the canonical staking contract designed for [Uniswap V3](https://github.com/Uniswap/uniswap-v3-core).
+This is the universal staking contract designed for [Uniswap V3](https://github.com/Uniswap/uniswap-v3-core) that accepts arbitrary reward function.
 
-## Security audit is in progress.
+## Security audit is TBD.
 
-- **This is still under security audit and not yet ready for production.** This section will be updated with relevant addresses once it's ready and live.
+- **This is still under development and not yet ready for production.** This section will be updated with relevant addresses once it's ready and live.
 
 ## Links:
 
-- [Contract Design](docs/Design.md)
+- [Contract Design](paper/universal_v3_staking.pdf)
 
 ## Development and Testing
 
