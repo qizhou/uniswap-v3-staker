@@ -52,16 +52,11 @@ interface IUniversalV3Staker is IERC721Receiver, IMulticall {
     /// @notice Represents a staking incentive
     /// @param incentiveId The ID of the incentive computed from its parameters
     /// @return totalRewardUnclaimed The amount of reward token not yet claimed by users
-    /// @return totalSecondsClaimedX128 Total liquidity-seconds claimed, represented as a UQ32.128
     /// @return numberOfStakes The count of deposits that are currently staked for the incentive
     function incentives(bytes32 incentiveId)
         external
         view
-        returns (
-            uint256 totalRewardUnclaimed,
-            uint160 totalSecondsClaimedX128,
-            uint96 numberOfStakes
-        );
+        returns (uint256 totalRewardUnclaimed, uint96 numberOfStakes);
 
     /// @notice Returns information about a deposited NFT
     /// @return owner The owner of the deposited NFT
@@ -83,10 +78,15 @@ interface IUniversalV3Staker is IERC721Receiver, IMulticall {
     /// @param incentiveId The ID of the incentive for which the token is staked
     /// @return secondsPerLiquidityInsideInitialX128 secondsPerLiquidity represented as a UQ32.128
     /// @return liquidity The amount of liquidity in the NFT as of the last time the rewards were computed
+    /// @return rewardDebt initial reward debt calculated when staking
     function stakes(uint256 tokenId, bytes32 incentiveId)
         external
         view
-        returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity);
+        returns (
+            uint160 secondsPerLiquidityInsideInitialX128,
+            uint128 liquidity,
+            uint256 rewardDebt
+        );
 
     /// @notice Returns amounts of reward tokens owed to a given address according to the last time all stakes were updated
     /// @param rewardToken The token for which to check rewards
