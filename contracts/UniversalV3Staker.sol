@@ -74,14 +74,14 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
     /// @dev stakes[tokenId][incentiveHash] => Stake
     mapping(uint256 => mapping(bytes32 => Stake)) private _stakes;
 
+    // @dev a constant used for cumulative function tree manipulation
+    uint256 private immutable _cfNbits;
     // @dev unsigned tick => liquidity left boundary
     mapping(uint24 => CumulativeFunction.Node) private _cumulativeLiquidityLower;
     // @dev unsigned tick => liquidity right boundary
     mapping(uint24 => CumulativeFunction.Node) private _cumulativeLiquidityUpper;
     // @dev unsigned tick => accumulated rewards (shifted 64 bits to avoid underflow)
     mapping(uint24 => CumulativeFunction.Node) private _cumulativeAccumulatedRewardsX64;
-    // @dev pool => CF bits used in cumulative function binary tree, dictated by tick size
-    mapping(address => uint256) private _cfNbits;
 
     using CumulativeFunction for mapping(uint24 => CumulativeFunction.Node);
 
@@ -118,6 +118,10 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         nonfungiblePositionManager = _nonfungiblePositionManager;
         maxIncentiveStartLeadTime = _maxIncentiveStartLeadTime;
         maxIncentiveDuration = _maxIncentiveDuration;
+
+        uint24 numTicks = uint24(TickMath.MAX_TICK - TickMath.MIN_TICK + 1);
+        uint8 nbits = BitMath.mostSignificantBit(uint256(numTicks)) + 1;
+        _cfNbits = uint256(nbits);
     }
 
     /// @inheritdoc IUniversalV3Staker
@@ -154,16 +158,6 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         TransferHelper.safeTransferFrom(address(key.rewardToken), msg.sender, address(this), reward);
 
         emit IncentiveCreated(key.rewardToken, key.pool, key.startTime, key.endTime, key.refundee, reward);
-
-        if (_cfNbits[address(key.pool)] == 0) {
-            int24 tickSpacing = key.pool.tickSpacing();
-            // similar calculation as in `Tick.tickSpacingToMaxLiquidityPerTick`
-            int24 minTick = (TickMath.MIN_TICK / tickSpacing) * tickSpacing;
-            int24 maxTick = (TickMath.MAX_TICK / tickSpacing) * tickSpacing;
-            uint24 numTicks = uint24((maxTick - minTick) / tickSpacing) + 1;
-            uint8 nbits = BitMath.mostSignificantBit(uint256(numTicks)) + 1;
-            _cfNbits[address(key.pool)] = uint256(nbits);
-        }
     }
 
     /// @inheritdoc IUniversalV3Staker
@@ -270,8 +264,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         require(liquidity != 0, 'UniswapV3Staker::unstakeToken: stake does not exist');
 
         (, int24 currentTick, , , , , ) = key.pool.slot0();
-        uint256 cfNbits = _cfNbits[address(key.pool)];
-        _updatePrice(block.timestamp, cfNbits, currentTick, key.rewardCalc);
+        _updatePrice(block.timestamp, currentTick, key.rewardCalc);
 
         Incentive storage incentive = incentives[incentiveId];
 
@@ -308,8 +301,8 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint24 tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
         uint24 tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
         // liquidity casting uint128 => uint208
-        _cumulativeLiquidityLower.remove(cfNbits, tickLowerShifted, uint208(liquidity));
-        _cumulativeLiquidityUpper.remove(cfNbits, tickUpperShifted, uint208(liquidity));
+        _cumulativeLiquidityLower.remove(_cfNbits, tickLowerShifted, uint208(liquidity));
+        _cumulativeLiquidityUpper.remove(_cfNbits, tickUpperShifted, uint208(liquidity));
         emit TokenUnstaked(tokenId, incentiveId);
     }
 
@@ -372,13 +365,12 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         );
 
         (, int24 currentTick, , , , , ) = key.pool.slot0();
-        _updatePrice(block.timestamp, _cfNbits[address(key.pool)], currentTick, key.rewardCalc);
+        _updatePrice(block.timestamp, currentTick, key.rewardCalc);
     }
 
     /// @dev Update can be called either externally or through staking / unstaking
     function _updatePrice(
         uint256 timestamp,
-        uint256 cfNbits,
         int24 tick,
         IRewardCalculator rewardCalc
     ) private {
@@ -391,8 +383,8 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint24 tickBeforeUpdate = uint24(lastTick - TickMath.MIN_TICK + 1);
         lastTick = tick;
 
-        uint208 liquidityLower = _cumulativeLiquidityLower.get(cfNbits, tickBeforeUpdate);
-        uint208 liquidityUpper = _cumulativeLiquidityUpper.get(cfNbits, tickBeforeUpdate);
+        uint208 liquidityLower = _cumulativeLiquidityLower.get(_cfNbits, tickBeforeUpdate);
+        uint208 liquidityUpper = _cumulativeLiquidityUpper.get(_cfNbits, tickBeforeUpdate);
         uint208 liquidity = liquidityLower - liquidityUpper;
         require(liquidity <= liquidityLower, 'UniswapV3Staker::updatePrice: overflow');
         if (liquidity == 0) return;
@@ -401,7 +393,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint256 rewardShareX64 = (calculatedRewards << 64) / uint256(liquidity);
         require(uint256(uint208(rewardShareX64)) == rewardShareX64, 'UniswapV3Staker::updatePrice: casting');
         // i.e. using  208 - 64 = 144 bits to store shares, with the max to be  2 ^ 144 - 1 = ~10^43, thus 10^25 ether
-        _cumulativeAccumulatedRewardsX64.add(cfNbits, tickBeforeUpdate + 1, uint208(rewardShareX64));
+        _cumulativeAccumulatedRewardsX64.add(_cfNbits, tickBeforeUpdate + 1, uint208(rewardShareX64));
     }
 
     /// @dev Stakes a deposited token without doing an ownership check
@@ -427,8 +419,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         require(liquidity > 0, 'UniswapV3Staker::stakeToken: cannot stake token with 0 liquidity');
 
         (, int24 currentTick, , , , , ) = key.pool.slot0();
-        uint256 cfNbits = _cfNbits[address(key.pool)];
-        _updatePrice(block.timestamp, cfNbits, currentTick, key.rewardCalc);
+        _updatePrice(block.timestamp, currentTick, key.rewardCalc);
 
         deposits[tokenId].numberOfStakes++;
         incentives[incentiveId].numberOfStakes++;
@@ -452,8 +443,8 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint24 tickLowerShifted = uint24(tickLower - TickMath.MIN_TICK + 1);
         uint24 tickUpperShifted = uint24(tickUpper - TickMath.MIN_TICK + 1);
         // liquidity casting uint128 => uint208
-        _cumulativeLiquidityLower.add(cfNbits, tickLowerShifted, uint208(liquidity));
-        _cumulativeLiquidityUpper.add(cfNbits, tickUpperShifted, uint208(liquidity));
+        _cumulativeLiquidityLower.add(_cfNbits, tickLowerShifted, uint208(liquidity));
+        _cumulativeLiquidityUpper.add(_cfNbits, tickUpperShifted, uint208(liquidity));
 
         emit TokenStaked(tokenId, incentiveId, liquidity);
     }
