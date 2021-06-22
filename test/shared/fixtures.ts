@@ -13,13 +13,12 @@ import { linkLibraries } from './linkLibraries'
 import { ISwapRouter } from '../../types/ISwapRouter'
 import { IWETH9 } from '../../types/IWETH9'
 import {
-  UniversalV3Staker,
+  UniswapV3Staker,
   TestERC20,
   INonfungiblePositionManager,
   IUniswapV3Factory,
   IUniswapV3Pool,
   TestIncentiveId,
-  TestRewardCalc,
 } from '../../typechain'
 import { NFTDescriptor } from '../../types/NFTDescriptor'
 import { FeeAmount, BigNumber, encodePriceSqrt, MAX_GAS_LIMIT } from '../shared'
@@ -207,19 +206,18 @@ export type UniswapFixtureType = {
   pool12: string
   poolObj: IUniswapV3Pool
   router: ISwapRouter
-  staker: UniversalV3Staker
+  staker: UniswapV3Staker
   testIncentiveId: TestIncentiveId
   tokens: [TestERC20, TestERC20, TestERC20]
   token0: TestERC20
   token1: TestERC20
   rewardToken: TestERC20
-  rewardCalc: TestRewardCalc
 }
 export const uniswapFixture: Fixture<UniswapFixtureType> = async (wallets, provider) => {
   const { tokens, nft, factory, router } = await uniswapFactoryFixture(wallets, provider)
   const signer = new ActorFixture(wallets, provider).stakerDeployer()
-  const stakerFactory = await ethers.getContractFactory('UniversalV3Staker', signer)
-  const staker = (await stakerFactory.deploy(factory.address, nft.address, 2 ** 32, 2 ** 32)) as UniversalV3Staker
+  const stakerFactory = await ethers.getContractFactory('UniswapV3Staker', signer)
+  const staker = (await stakerFactory.deploy(factory.address, nft.address, 2 ** 32, 2 ** 32)) as UniswapV3Staker
 
   const testIncentiveIdFactory = await ethers.getContractFactory('TestIncentiveId', signer)
   const testIncentiveId = (await testIncentiveIdFactory.deploy()) as TestIncentiveId
@@ -239,9 +237,6 @@ export const uniswapFixture: Fixture<UniswapFixtureType> = async (wallets, provi
 
   const poolObj = poolFactory.attach(pool01) as IUniswapV3Pool
 
-  const rewardCalcFactory = await ethers.getContractFactory('TestRewardCalc', signer)
-  const rewardCalc = (await rewardCalcFactory.deploy()) as TestRewardCalc
-
   return {
     nft,
     router,
@@ -256,7 +251,6 @@ export const uniswapFixture: Fixture<UniswapFixtureType> = async (wallets, provi
     token0: tokens[0],
     token1: tokens[1],
     rewardToken: tokens[2],
-    rewardCalc: rewardCalc,
   }
 }
 

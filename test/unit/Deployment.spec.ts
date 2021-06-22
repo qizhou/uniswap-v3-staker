@@ -1,6 +1,6 @@
 import { LoadFixtureFunction } from '../types'
 import { ethers } from 'hardhat'
-import { UniversalV3Staker } from '../../typechain'
+import { UniswapV3Staker } from '../../typechain'
 import { uniswapFixture, UniswapFixtureType } from '../shared/fixtures'
 import { expect } from '../shared'
 import { createFixtureLoader, provider } from '../shared/provider'
@@ -19,24 +19,24 @@ describe('unit/Deployment', () => {
   })
 
   it('deploys and has an address', async () => {
-    const stakerFactory = await ethers.getContractFactory('UniversalV3Staker')
+    const stakerFactory = await ethers.getContractFactory('UniswapV3Staker')
     const staker = (await stakerFactory.deploy(
       context.factory.address,
       context.nft.address,
       2 ** 32,
       2 ** 32
-    )) as UniversalV3Staker
+    )) as UniswapV3Staker
     expect(staker.address).to.be.a.string
   })
 
   it('sets immutable variables', async () => {
-    const stakerFactory = await ethers.getContractFactory('UniversalV3Staker')
+    const stakerFactory = await ethers.getContractFactory('UniswapV3Staker')
     const staker = (await stakerFactory.deploy(
       context.factory.address,
       context.nft.address,
       2 ** 32,
       2 ** 32
-    )) as UniversalV3Staker
+    )) as UniswapV3Staker
 
     expect(await staker.factory()).to.equal(context.factory.address)
     expect(await staker.nonfungiblePositionManager()).to.equal(context.nft.address)

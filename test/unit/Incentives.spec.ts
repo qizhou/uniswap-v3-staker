@@ -60,7 +60,6 @@ describe('unit/Incentives', async () => {
           {
             rewardToken: params.rewardToken || context.rewardToken.address,
             pool: context.pool01,
-            rewardCalc: context.rewardCalc.address,
             startTime: params.startTime || startTime,
             endTime: params.endTime || endTime,
             refundee: params.refundee || incentiveCreator.address,
@@ -100,7 +99,6 @@ describe('unit/Incentives', async () => {
         const incentiveId = await context.testIncentiveId.compute({
           rewardToken: context.rewardToken.address,
           pool: context.pool01,
-          rewardCalc: context.rewardCalc.address,
           startTime: timestamps.startTime,
           endTime: timestamps.endTime,
           refundee: incentiveCreator.address,
@@ -173,7 +171,6 @@ describe('unit/Incentives', async () => {
               {
                 rewardToken: context.rewardToken.address,
                 pool: context.pool01,
-                rewardCalc: context.rewardCalc.address,
                 refundee: incentiveCreator.address,
                 ...makeTimestamps(now, 1_000),
               },
@@ -195,7 +192,6 @@ describe('unit/Incentives', async () => {
       createIncentiveResult = await helpers.createIncentiveFlow({
         ...timestamps,
         rewardToken: context.rewardToken,
-        rewardCalc: context.rewardCalc.address,
         poolAddress: context.poolObj.address,
         totalReward,
       })
@@ -203,7 +199,6 @@ describe('unit/Incentives', async () => {
       subject = async (params: Partial<ContractParams.EndIncentive> = {}) => {
         return await context.staker.connect(incentiveCreator).endIncentive({
           rewardToken: params.rewardToken || context.rewardToken.address,
-          rewardCalc: params.rewardCalc || context.rewardCalc.address,
           pool: context.pool01,
           startTime: params.startTime || timestamps.startTime,
           endTime: params.endTime || timestamps.endTime,

@@ -72,6 +72,7 @@ describe('unit/Multicall', () => {
       {
         pool: context.pool01,
         rewardToken: context.rewardToken.address,
+        rewardCalc: context.rewardCalc.address,
         refundee: incentiveCreator.address,
         ...makeTimestamps(currentTime + 100),
       },
@@ -97,6 +98,7 @@ describe('unit/Multicall', () => {
     // Create three incentives
     const incentiveParams: HelperTypes.CreateIncentive.Args = {
       rewardToken: context.rewardToken,
+      rewardCalc: context.rewardCalc.address,
       poolAddress: context.poolObj.address,
       totalReward,
       ...makeTimestamps(timestamp + 100),
@@ -130,6 +132,7 @@ describe('unit/Multicall', () => {
     const { startTime, endTime } = makeTimestamps(await blockTimestamp(), 1000)
     const incentive0 = await helpers.createIncentiveFlow({
       rewardToken: context.token0,
+      rewardCalc: context.rewardCalc.address,
       startTime,
       endTime,
       refundee: actors.incentiveCreator().address,
@@ -139,6 +142,7 @@ describe('unit/Multicall', () => {
     await helpers.getIncentiveId(incentive0)
     const incentive1 = await helpers.createIncentiveFlow({
       rewardToken: context.token1,
+      rewardCalc: context.rewardCalc.address,
       startTime,
       endTime,
       refundee: actors.incentiveCreator().address,
@@ -183,6 +187,7 @@ describe('unit/Multicall', () => {
 
     const incentive = await helpers.createIncentiveFlow({
       rewardToken: context.rewardToken,
+      rewardCalc: context.rewardCalc.address,
       poolAddress: context.poolObj.address,
       totalReward,
       ...makeTimestamps(timestamp + 100),

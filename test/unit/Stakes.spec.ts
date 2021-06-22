@@ -87,7 +87,6 @@ describe('unit/Stakes', () => {
 
       incentiveArgs = {
         rewardToken: context.rewardToken,
-        rewardCalc: context.rewardCalc.address,
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
@@ -101,7 +100,6 @@ describe('unit/Stakes', () => {
             refundee: incentiveCreator.address,
             pool: context.pool01,
             rewardToken: context.rewardToken.address,
-            rewardCalc: context.rewardCalc.address,
             ...timestamps,
           },
           _tokenId
@@ -237,7 +235,6 @@ describe('unit/Stakes', () => {
               refundee: incentiveCreator.address,
               pool: context.pool01,
               rewardToken: context.rewardToken.address,
-              rewardCalc: context.rewardCalc.address,
               ...timestamps,
             },
             otherTokenId
@@ -254,7 +251,6 @@ describe('unit/Stakes', () => {
               refundee: incentiveCreator.address,
               pool: context.pool01,
               rewardToken: context.rewardToken.address,
-              rewardCalc: context.rewardCalc.address,
               ...timestamps,
               startTime: timestamps.startTime + 10,
             },
@@ -298,7 +294,6 @@ describe('unit/Stakes', () => {
       stakeIncentiveKey = {
         refundee: incentiveCreator.address,
         rewardToken: context.rewardToken.address,
-        rewardCalc: context.rewardCalc.address,
         pool: context.pool01,
         ...timestamps,
       }
@@ -306,7 +301,6 @@ describe('unit/Stakes', () => {
       incentiveId = await helpers.getIncentiveId(
         await helpers.createIncentiveFlow({
           rewardToken: context.rewardToken,
-          rewardCalc: context.rewardCalc.address,
           totalReward,
           poolAddress: context.poolObj.address,
           ...timestamps,
@@ -370,7 +364,6 @@ describe('unit/Stakes', () => {
 
       createIncentiveResult = await helpers.createIncentiveFlow({
         rewardToken: context.rewardToken,
-        rewardCalc: context.rewardCalc.address,
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
@@ -392,7 +385,6 @@ describe('unit/Stakes', () => {
         {
           refundee: incentiveCreator.address,
           rewardToken: context.rewardToken.address,
-          rewardCalc: context.rewardCalc.address,
           pool: context.pool01,
           ...timestamps,
         },
@@ -492,7 +484,6 @@ describe('unit/Stakes', () => {
 
       createIncentiveResult = await helpers.createIncentiveFlow({
         rewardToken: context.rewardToken,
-        rewardCalc: context.rewardCalc.address,
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
@@ -529,7 +520,6 @@ describe('unit/Stakes', () => {
         {
           refundee: incentiveCreator.address,
           rewardToken: context.rewardToken.address,
-          rewardCalc: context.rewardCalc.address,
           pool: context.pool01,
           ...timestamps,
         },
@@ -544,7 +534,6 @@ describe('unit/Stakes', () => {
             refundee: incentiveCreator.address,
             pool: context.pool01,
             rewardToken: context.rewardToken.address,
-            rewardCalc: context.rewardCalc.address,
             ...timestamps,
           },
           tokenId

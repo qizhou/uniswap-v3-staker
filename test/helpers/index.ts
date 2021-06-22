@@ -17,7 +17,7 @@ import _ from 'lodash'
 import {
   TestERC20,
   INonfungiblePositionManager,
-  UniversalV3Staker,
+  UniswapV3Staker,
   IUniswapV3Pool,
   TestIncentiveId,
 } from '../../typechain'
@@ -38,7 +38,7 @@ import { TestContext } from '../types'
 export class HelperCommands {
   actors: ActorFixture
   provider: MockProvider
-  staker: UniversalV3Staker
+  staker: UniswapV3Staker
   nft: INonfungiblePositionManager
   router: ISwapRouter
   pool: IUniswapV3Pool
@@ -59,7 +59,7 @@ export class HelperCommands {
     testIncentiveId,
   }: {
     provider: MockProvider
-    staker: UniversalV3Staker
+    staker: UniswapV3Staker
     nft: INonfungiblePositionManager
     router: ISwapRouter
     pool: IUniswapV3Pool
@@ -114,7 +114,6 @@ export class HelperCommands {
       {
         pool: params.poolAddress,
         rewardToken: params.rewardToken.address,
-        rewardCalc: params.rewardCalc,
         ...times,
         refundee: params.refundee || incentiveCreator.address,
       },
@@ -122,7 +121,7 @@ export class HelperCommands {
     )
 
     return {
-      ..._.pick(params, ['poolAddress', 'totalReward', 'rewardToken', 'rewardCalc']),
+      ..._.pick(params, ['poolAddress', 'totalReward', 'rewardToken']),
       ...times,
       refundee: params.refundee || incentiveCreator.address,
     }
@@ -286,7 +285,6 @@ export class HelperCommands {
       await this.staker.connect(incentiveCreator).endIncentive(
         _.assign({}, _.pick(params.createIncentiveResult, ['startTime', 'endTime']), {
           rewardToken: rewardToken.address,
-          rewardCalc: params.createIncentiveResult.poolAddress,
           pool: params.createIncentiveResult.poolAddress,
           refundee: params.createIncentiveResult.refundee,
         })
@@ -317,7 +315,6 @@ export class HelperCommands {
       startTime: params.startTime,
       endTime: params.endTime,
       refundee: params.refundee,
-      rewardCalc: params.rewardCalc,
     })
   }
 
@@ -433,6 +430,5 @@ export const incentiveResultToStakeAdapter: IncentiveAdapterFunc = (params) => (
   startTime: params.startTime,
   endTime: params.endTime,
   rewardToken: params.rewardToken.address,
-  rewardCalc: params.rewardCalc,
   refundee: params.refundee,
 })

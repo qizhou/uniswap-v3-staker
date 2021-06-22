@@ -51,7 +51,7 @@ describe('unit/Deposits', () => {
 
   const SAFE_TRANSFER_FROM_SIGNATURE = 'safeTransferFrom(address,address,uint256,bytes)'
   const INCENTIVE_KEY_ABI =
-    'tuple(address rewardToken, address pool, address rewardCalc, uint256 startTime, uint256 endTime, address refundee)'
+    'tuple(address rewardToken, address pool, uint256 startTime, uint256 endTime, address refundee)'
 
   beforeEach(async () => {
     await erc20Helper.ensureBalancesAndApprovals(
@@ -102,7 +102,6 @@ describe('unit/Deposits', () => {
 
       createIncentiveResult = await helpers.createIncentiveFlow({
         rewardToken: context.rewardToken,
-        rewardCalc: context.rewardCalc.address,
         poolAddress: context.poolObj.address,
         startTime,
         totalReward,
@@ -152,7 +151,6 @@ describe('unit/Deposits', () => {
     it('allows depositing and staking for two incentives', async () => {
       const createIncentiveResult2 = await helpers.createIncentiveFlow({
         rewardToken: context.rewardToken,
-        rewardCalc: context.rewardCalc.address,
         poolAddress: context.poolObj.address,
         startTime: createIncentiveResult.startTime + 100,
         totalReward,
@@ -179,7 +177,7 @@ describe('unit/Deposits', () => {
     })
 
     describe('reverts when', () => {
-      it('staking info is less than 192 bytes and greater than 0 bytes', async () => {
+      it('staking info is less than 160 bytes and greater than 0 bytes', async () => {
         const data = ethers.utils.defaultAbiCoder.encode(
           [INCENTIVE_KEY_ABI],
           [incentiveResultToStakeAdapter(createIncentiveResult)]
@@ -203,7 +201,7 @@ describe('unit/Deposits', () => {
         await expect(subject(data)).to.be.reverted
       })
 
-      it('staking information is invalid and greater than 192 bytes', async () => {
+      it('staking information is invalid and greater than 160 bytes', async () => {
         const malformedData =
           ethers.utils.defaultAbiCoder.encode(
             [INCENTIVE_KEY_ABI],
@@ -217,7 +215,7 @@ describe('unit/Deposits', () => {
 
   describe('#onERC721Received', () => {
     const incentiveKeyAbi =
-      'tuple(address rewardToken, address pool, address rewardCalc, uint256 startTime, uint256 endTime, address refundee)'
+      'tuple(address rewardToken, address pool, uint256 startTime, uint256 endTime, address refundee)'
     let tokenId: BigNumberish
     let data: string
     let timestamps: ContractParams.Timestamps
@@ -249,7 +247,6 @@ describe('unit/Deposits', () => {
 
       const incentive = await helpers.createIncentiveFlow({
         rewardToken,
-        rewardCalc: context.rewardCalc.address,
         totalReward,
         poolAddress: context.poolObj.address,
         ...timestamps,
@@ -284,7 +281,6 @@ describe('unit/Deposits', () => {
           startTime: timestamps.startTime,
           endTime: timestamps.endTime,
           refundee: incentiveCreator.address,
-          rewardCalc: context.rewardCalc.address,
         })
         await Time.set(timestamps.startTime + 10)
         const stakeBefore = await context.staker.stakes(tokenId, incentiveId)
@@ -333,7 +329,6 @@ describe('unit/Deposits', () => {
           rewardToken: context.rewardToken.address,
           refundee: incentiveCreator.address,
           pool: context.pool01,
-          rewardCalc: context.rewardCalc.address,
           ...timestamps,
           startTime: 100,
         }
@@ -401,7 +396,6 @@ describe('unit/Deposits', () => {
         const timestamps = makeTimestamps(await blockTimestamp())
         const incentiveParams: HelperTypes.CreateIncentive.Args = {
           rewardToken: context.rewardToken,
-          rewardCalc: context.rewardCalc.address,
           totalReward,
           poolAddress: context.poolObj.address,
           ...timestamps,
@@ -413,7 +407,6 @@ describe('unit/Deposits', () => {
             ...incentive,
             pool: context.pool01,
             rewardToken: incentive.rewardToken.address,
-            rewardCalc: incentive.rewardCalc,
           },
           tokenId
         )
