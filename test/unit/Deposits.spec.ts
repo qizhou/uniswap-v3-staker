@@ -457,6 +457,7 @@ describe('unit/Deposits', () => {
         'UniswapV3Staker::transferDeposit: invalid transfer recipient'
       )
     })
+
     it('has gas cost', () => snapshotGasCost(context.staker.connect(lpUser0).transferDeposit(tokenId, lpUser1.address)))
   })
 })

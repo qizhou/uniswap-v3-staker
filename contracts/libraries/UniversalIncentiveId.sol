@@ -4,7 +4,7 @@ pragma abicoder v2;
 
 import '../interfaces/IUniversalV3Staker.sol';
 
-library IncentiveId {
+library UniversalIncentiveId {
     /// @notice Calculate the key for a staking incentive
     /// @param key The components used to compute the incentive identifier
     /// @return incentiveId The identifier for the incentive

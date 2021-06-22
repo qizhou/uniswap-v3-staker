@@ -179,7 +179,6 @@ describe('unit/Multicall', () => {
         context.staker.interface.encodeFunctionData('claimReward', [context.token0.address, lpUser0.address, BN('0')]),
         context.staker.interface.encodeFunctionData('claimReward', [context.token1.address, lpUser0.address, BN('0')]),
       ])
-
     await snapshotGasCost(tx)
   })
 
@@ -202,7 +201,6 @@ describe('unit/Multicall', () => {
       createIncentiveResult: incentive,
     }
 
-    // TODO Time setting
     await Time.setAndMine(incentive.startTime + 1)
 
     const { tokenId: tokenId0 } = await helpers.mintDepositStakeFlow(params)

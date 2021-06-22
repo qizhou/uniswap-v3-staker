@@ -7,6 +7,7 @@ import './interfaces/IRewardCalculator.sol';
 import './libraries/RewardMath.sol';
 import './libraries/NFTPositionInfo.sol';
 import './libraries/CumulativeFunction.sol';
+import './libraries/UniversalIncentiveId.sol';
 
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
@@ -17,15 +18,6 @@ import '@uniswap/v3-core/contracts/libraries/TickMath.sol';
 import '@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol';
 import '@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol';
 import '@uniswap/v3-periphery/contracts/base/Multicall.sol';
-
-library IncentiveId {
-    /// @notice Calculate the key for a staking incentive
-    /// @param key The components used to compute the incentive identifier
-    /// @return incentiveId The identifier for the incentive
-    function compute(IUniversalV3Staker.IncentiveKey memory key) internal pure returns (bytes32 incentiveId) {
-        return keccak256(abi.encode(key));
-    }
-}
 
 /// @title Universal staking interface for Uniswap V3
 contract UniversalV3Staker is IUniversalV3Staker, Multicall {
@@ -143,7 +135,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
             'UniswapV3Staker::createIncentive: incentive duration is too long'
         );
 
-        bytes32 incentiveId = IncentiveId.compute(key);
+        bytes32 incentiveId = UniversalIncentiveId.compute(key);
 
         // totalRewardUnclaimed cannot decrease until key.startTime has passed, meaning this check is safe
         require(
@@ -166,7 +158,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
     function endIncentive(IncentiveKey memory key) external override returns (uint256 refund) {
         require(block.timestamp >= key.endTime, 'UniswapV3Staker::endIncentive: cannot end incentive before end time');
 
-        bytes32 incentiveId = IncentiveId.compute(key);
+        bytes32 incentiveId = UniversalIncentiveId.compute(key);
         Incentive storage incentive = incentives[incentiveId];
 
         refund = incentive.totalRewardUnclaimed;
@@ -259,7 +251,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
             );
         }
 
-        bytes32 incentiveId = IncentiveId.compute(key);
+        bytes32 incentiveId = UniversalIncentiveId.compute(key);
 
         (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) = stakes(tokenId, incentiveId);
 
@@ -332,7 +324,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         override
         returns (uint256 reward, uint160 secondsInsideX128)
     {
-        bytes32 incentiveId = IncentiveId.compute(key);
+        bytes32 incentiveId = UniversalIncentiveId.compute(key);
 
         (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) = stakes(tokenId, incentiveId);
         require(liquidity > 0, 'UniswapV3Staker::getRewardInfo: stake does not exist');
@@ -360,7 +352,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         require(block.timestamp >= key.startTime, 'UniswapV3Staker::updatePrice: incentive not started');
         require(block.timestamp < key.endTime, 'UniswapV3Staker::updatePrice: incentive ended');
 
-        bytes32 incentiveId = IncentiveId.compute(key);
+        bytes32 incentiveId = UniversalIncentiveId.compute(key);
         require(
             incentives[incentiveId].totalRewardUnclaimed > 0,
             'UniswapV3Staker::updatePrice: non-existent incentive'
@@ -403,7 +395,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         require(block.timestamp >= key.startTime, 'UniswapV3Staker::stakeToken: incentive not started');
         require(block.timestamp < key.endTime, 'UniswapV3Staker::stakeToken: incentive ended');
 
-        bytes32 incentiveId = IncentiveId.compute(key);
+        bytes32 incentiveId = UniversalIncentiveId.compute(key);
 
         require(
             incentives[incentiveId].totalRewardUnclaimed > 0,
