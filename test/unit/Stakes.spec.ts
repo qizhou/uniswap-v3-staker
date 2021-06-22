@@ -154,8 +154,7 @@ describe('unit/Stakes', () => {
         expect(stakesAfter.sub(stakesBefore)).to.eq(BN('1'))
       })
 
-      // TODO Fix gas cost
-      // it('has gas cost', async () => await snapshotGasCost(subject(tokenId, lpUser0)))
+      it('has gas cost', async () => await snapshotGasCost(subject(tokenId, lpUser0)))
     })
 
     describe('fails when', () => {
@@ -432,9 +431,8 @@ describe('unit/Stakes', () => {
         expect(await context.staker.rewards(rewardToken.address, lpUser0.address)).to.equal(0)
       })
 
-      // TODO Fix gas cost
-      // it('has gas cost', async () =>
-      //   await snapshotGasCost(subject(context.rewardToken.address, lpUser0.address, BN('0'))))
+      it('has gas cost', async () =>
+        await snapshotGasCost(subject(context.rewardToken.address, lpUser0.address, BN('0'))))
 
       it('returns their claimable amount', async () => {
         const { rewardToken, staker } = context
@@ -572,10 +570,9 @@ describe('unit/Stakes', () => {
         await expect(subject(lpUser0)).to.emit(context.staker, 'TokenUnstaked').withArgs(tokenId, incentiveId)
       })
 
-      // TODO Fix gas cost
-      // it('has gas cost', async () => {
-      //   await snapshotGasCost(subject(lpUser0))
-      // })
+      it('has gas cost', async () => {
+        await snapshotGasCost(subject(lpUser0))
+      })
 
       it('updates the reward available for the context.staker', async () => {
         const rewardsAccured = await context.staker.rewards(context.rewardToken.address, lpUser0.address)

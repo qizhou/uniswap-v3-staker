@@ -80,7 +80,6 @@ describe('unit/Incentives', async () => {
         expect(await context.rewardToken.balanceOf(context.staker.address)).to.eq(balanceBefore.add(totalReward))
       })
 
-      // TODO Event with reward Calc?
       it('emits an event with valid parameters', async () => {
         const { startTime, endTime } = makeTimestamps(await blockTimestamp())
         await expect(subject({ startTime, endTime }))
@@ -112,13 +111,11 @@ describe('unit/Incentives', async () => {
         expect(incentive.totalSecondsClaimedX128).to.equal(BN(0))
       })
 
-      // // TODO Fix gas cost
-      // it('has gas cost', async () => {
-      //   await snapshotGasCost(subject({}))
-      // })
+      it('has gas cost', async () => {
+        await snapshotGasCost(subject({}))
+      })
     })
 
-    // TODO Revert msg
     describe('fails when', () => {
       it('there is already has an incentive with those params', async () => {
         const params = makeTimestamps(await blockTimestamp())
@@ -240,11 +237,10 @@ describe('unit/Incentives', async () => {
         expect(numberOfStakes).to.eq(0)
       })
 
-      // // TODO Fix gas cost
-      // it('has gas cost', async () => {
-      //   await Time.set(timestamps.endTime + 1)
-      //   await snapshotGasCost(subject({}))
-      // })
+      it('has gas cost', async () => {
+        await Time.set(timestamps.endTime + 1)
+        await snapshotGasCost(subject({}))
+      })
     })
 
     describe('reverts when', async () => {

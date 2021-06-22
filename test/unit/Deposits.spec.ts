@@ -303,26 +303,24 @@ describe('unit/Deposits', () => {
         expect(stakeAfter.secondsPerLiquidityInsideInitialX128).to.be.gt(0)
       })
 
-      // TODO FIX gas cost
-      // it('has gas cost', async () => {
-      //   await snapshotGasCost(
-      //     context.nft
-      //       .connect(lpUser0)
-      //       ['safeTransferFrom(address,address,uint256,bytes)'](
-      //         lpUser0.address,
-      //         context.staker.address,
-      //         tokenId,
-      //         data,
-      //         {
-      //           ...maxGas,
-      //           from: lpUser0.address,
-      //         }
-      //       )
-      //   )
-      // })
+      it('has gas cost', async () => {
+        await snapshotGasCost(
+          context.nft
+            .connect(lpUser0)
+            ['safeTransferFrom(address,address,uint256,bytes)'](
+              lpUser0.address,
+              context.staker.address,
+              tokenId,
+              data,
+              {
+                ...maxGas,
+                from: lpUser0.address,
+              }
+            )
+        )
+      })
     })
 
-    // TODO Revert Error Message
     describe('on invalid call', async () => {
       it('reverts when called by contract other than uniswap v3 nonfungiblePositionManager', async () => {
         await expect(
@@ -388,11 +386,9 @@ describe('unit/Deposits', () => {
         expect((await context.staker.deposits(tokenId)).owner).to.equal(constants.AddressZero)
       })
 
-      // TODO Fix Gas Cost
-      // it('has gas cost', async () => await snapshotGasCost(subject(tokenId, recipient)))
+      it('has gas cost', async () => await snapshotGasCost(subject(tokenId, recipient)))
     })
 
-    // TODO Revert Msg
     describe('fails if', () => {
       it('you are withdrawing a token that is not yours', async () => {
         const notOwner = actors.traderUser1()
@@ -450,7 +446,6 @@ describe('unit/Deposits', () => {
       expect(ownerAfter).to.eq(lpUser1.address)
     })
 
-    // TODO Revert err msg
     it('can only be called by the owner', async () => {
       await expect(context.staker.connect(lpUser1).transferDeposit(tokenId, lpUser1.address)).to.be.revertedWith(
         'UniswapV3Staker::transferDeposit: can only be called by deposit owner'
@@ -462,7 +457,6 @@ describe('unit/Deposits', () => {
         'UniswapV3Staker::transferDeposit: invalid transfer recipient'
       )
     })
-    // TODO Fix gas cost
-    // it('has gas cost', () => snapshotGasCost(context.staker.connect(lpUser0).transferDeposit(tokenId, lpUser1.address)))
+    it('has gas cost', () => snapshotGasCost(context.staker.connect(lpUser0).transferDeposit(tokenId, lpUser1.address)))
   })
 })

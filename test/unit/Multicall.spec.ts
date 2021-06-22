@@ -125,8 +125,7 @@ describe('unit/Multicall', () => {
         context.staker.interface.encodeFunctionData('stakeToken', [incentiveResultToStakeAdapter(incentive2), tokenId]),
       ])
 
-    // // TODO Fix Gas Cost
-    // await snapshotGasCost(tx)
+    await snapshotGasCost(tx)
   })
 
   it('can be used to exit a position from multiple incentives', async () => {
@@ -181,8 +180,7 @@ describe('unit/Multicall', () => {
         context.staker.interface.encodeFunctionData('claimReward', [context.token1.address, lpUser0.address, BN('0')]),
       ])
 
-    // TODO Fix gas cost
-    // await snapshotGasCost(tx)
+    await snapshotGasCost(tx)
   })
 
   it('can be used to exit multiple tokens from one incentive', async () => {
@@ -205,7 +203,7 @@ describe('unit/Multicall', () => {
     }
 
     // TODO Time setting
-    await Time.setAndMine(incentive.startTime + 100)
+    await Time.setAndMine(incentive.startTime + 1)
 
     const { tokenId: tokenId0 } = await helpers.mintDepositStakeFlow(params)
     const { tokenId: tokenId1 } = await helpers.mintDepositStakeFlow(params)
