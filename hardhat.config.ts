@@ -56,6 +56,9 @@ const config: HardhatUserConfig = {
   mocha: {
     grep: '',
   },
+  paths: {
+    tests: './new_test',
+  },
 }
 
 export default config
