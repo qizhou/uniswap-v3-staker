@@ -284,7 +284,7 @@ describe('unit/Deposits', () => {
           startTime: timestamps.startTime,
           endTime: timestamps.endTime,
           refundee: incentiveCreator.address,
-          rewardCalc: context.rewardCalc.address
+          rewardCalc: context.rewardCalc.address,
         })
         await Time.set(timestamps.startTime + 10)
         const stakeBefore = await context.staker.stakes(tokenId, incentiveId)
@@ -413,7 +413,7 @@ describe('unit/Deposits', () => {
             ...incentive,
             pool: context.pool01,
             rewardToken: incentive.rewardToken.address,
-            rewardCalc: incentive.rewardCalc
+            rewardCalc: incentive.rewardCalc,
           },
           tokenId
         )

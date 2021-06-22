@@ -19,7 +19,7 @@ import {
   IUniswapV3Factory,
   IUniswapV3Pool,
   TestIncentiveId,
-  TestRewardCalc
+  TestRewardCalc,
 } from '../../typechain'
 import { NFTDescriptor } from '../../types/NFTDescriptor'
 import { FeeAmount, BigNumber, encodePriceSqrt, MAX_GAS_LIMIT } from '../shared'
@@ -256,7 +256,7 @@ export const uniswapFixture: Fixture<UniswapFixtureType> = async (wallets, provi
     token0: tokens[0],
     token1: tokens[1],
     rewardToken: tokens[2],
-    rewardCalc: rewardCalc
+    rewardCalc: rewardCalc,
   }
 }
 

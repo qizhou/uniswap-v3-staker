@@ -317,7 +317,7 @@ export class HelperCommands {
       startTime: params.startTime,
       endTime: params.endTime,
       refundee: params.refundee,
-      rewardCalc: params.rewardCalc
+      rewardCalc: params.rewardCalc,
     })
   }
 
