@@ -42,6 +42,15 @@ library CumulativeFunction {
         return 0;
     }
 
+    // @notice Given an existing node (child, may have child/children) and a new node to insert (x, no child),
+    //         return their nearest common ancestor (y) after inserting x and child
+    // @dev The result of the insertion could be
+    //      1,    x = y             x = y
+    //           /          or        \
+    //          child                 child
+    //      2,     y                y
+    //           /   \      or    /   \
+    //          x    child      child  x
     function insertFully(
         mapping(uint24 => Node) storage self,
         uint24 child,
@@ -63,6 +72,10 @@ library CumulativeFunction {
             self[y].value = sv;
         } else if (child > y) {
             self[y].right = child;
+        } else {
+            // child == y
+            // should not happen
+            assert(false);
         }
 
         if (x < y) {
@@ -70,9 +83,33 @@ library CumulativeFunction {
             self[y].value += v;
         } else if (x > y) {
             self[y].right = x;
+        } else {
+            // x == y
         }
     }
 
+    // @notice Add v to f(x) so that f(x) <- f(x) + v.
+    // @dev The method will traverse from root to x in the cumulative function tree.
+    //      It will skip the uninitialized node, and if the node of x does not exist,
+    //      it will insert x and insert an extra node if necessary given
+    //      p - the most-recent-visited initialized node
+    //      child - the existing child of p (can be none)
+    //      After the insertion, the tree will like like
+    //      1,     p                p      (if child is none)
+    //           /          or        \
+    //          x                      x
+    //
+    //      2,     p              p             p           p       from    p (child == p.left)
+    //           /               /             /           /              /   \
+    //          y          or   y       or    y = x   or  y = x         child ???
+    //         / \            /   \          /             \
+    //        x  child     child   x       child           child
+    //
+    //      3,  p                p             p           p        from    p (child == p.right)
+    //           \                \             \           \             /   \
+    //            y          or   y       or    y = x   or  y = x        ???  child
+    //           / \            /   \          /             \
+    //          x  child     child   x       child           child
     function add(
         mapping(uint24 => Node) storage self,
         uint256 nbits,
@@ -91,11 +128,13 @@ library CumulativeFunction {
             if (x == cx) {
                 // Find the Node
                 if (x != child) {
-                    // Need to create a new node for x and parent node for x and child
+                    // Need to create a new node as common ancestor of x and child
                     uint24 newn = x;
                     if (child != 0) {
                         // child should be p.left (x < p) or p.right (x > p)
                         newn = insertFully(self, child, x, v);
+                        // assert (x < p and child < p and newn < p) or (x > p and child > p and newn > p)
+                        // assert getHeight(newn) < getHeight(p)
                     }
 
                     if (x < p) {
@@ -105,6 +144,7 @@ library CumulativeFunction {
                     }
                 }
                 self[x].value += v;
+                break;
             }
 
             if (cx == child) {
