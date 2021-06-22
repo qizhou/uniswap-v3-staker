@@ -119,7 +119,9 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         maxIncentiveStartLeadTime = _maxIncentiveStartLeadTime;
         maxIncentiveDuration = _maxIncentiveDuration;
 
-        uint24 numTicks = uint24(TickMath.MAX_TICK - TickMath.MIN_TICK + 1);
+        // tick range inclusive
+        // also add another zero-tick indicating `null` in cumulative function
+        uint24 numTicks = uint24(TickMath.MAX_TICK - TickMath.MIN_TICK + 1 + 1);
         uint8 nbits = BitMath.mostSignificantBit(uint256(numTicks)) + 1;
         _cfNbits = uint256(nbits);
     }
