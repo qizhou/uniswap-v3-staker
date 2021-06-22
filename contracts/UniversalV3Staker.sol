@@ -184,7 +184,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         emit DepositTransferred(tokenId, address(0), from);
 
         if (data.length > 0) {
-            if (data.length == 160) {
+            if (data.length == 192) {
                 _stakeToken(abi.decode(data, (IncentiveKey)), tokenId);
             } else {
                 IncentiveKey[] memory keys = abi.decode(data, (IncentiveKey[]));
