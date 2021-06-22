@@ -57,8 +57,8 @@ const config: HardhatUserConfig = {
     grep: '',
   },
   paths: {
-	  tests: "./new_test"
-  }
+    tests: './new_test',
+  },
 }
 
 export default config
