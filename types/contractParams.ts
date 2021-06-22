@@ -10,6 +10,7 @@ export module ContractParams {
     pool: string
     rewardToken: string
     refundee: string
+    rewardCalc: string
   } & Timestamps
 
   export type CreateIncentive = IncentiveKey & {
