@@ -8,6 +8,7 @@ import './libraries/RewardMath.sol';
 import './libraries/NFTPositionInfo.sol';
 import './libraries/CumulativeFunction.sol';
 import './libraries/UniversalIncentiveId.sol';
+import "hardhat/console.sol";
 
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
@@ -89,6 +90,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
             uint256 rewardDebt
         )
     {
+        console.log("STAKING");
         Stake storage stake = _stakes[tokenId][incentiveId];
         secondsPerLiquidityInsideInitialX128 = stake.secondsPerLiquidityInsideInitialX128;
         liquidity = stake.liquidityNoOverflow;
@@ -126,6 +128,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
     /// @inheritdoc IUniversalV3Staker
     function createIncentive(IncentiveKey memory key, uint256 reward) external override {
+        console.log("CREATING INCENTIVE");
         require(reward > 0, 'UniswapV3Staker::createIncentive: reward must be positive');
         require(
             block.timestamp <= key.startTime,
@@ -158,6 +161,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
     /// @inheritdoc IUniversalV3Staker
     function endIncentive(IncentiveKey memory key) external override returns (uint256 refund) {
+        console.log("ENDING INCENTIVE");
         require(block.timestamp >= key.endTime, 'UniswapV3Staker::endIncentive: cannot end incentive before end time');
 
         bytes32 incentiveId = UniversalIncentiveId.compute(key);
@@ -185,6 +189,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint256 tokenId,
         bytes calldata data
     ) external override returns (bytes4) {
+        console.log("RECEIVED ERC721");
         require(
             msg.sender == address(nonfungiblePositionManager),
             'UniswapV3Staker::onERC721Received: not a univ3 nft'
@@ -210,6 +215,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
     /// @inheritdoc IUniversalV3Staker
     function transferDeposit(uint256 tokenId, address to) external override {
+        console.log("TRANSFERING DEPOSIT");
         require(to != address(0), 'UniswapV3Staker::transferDeposit: invalid transfer recipient');
         address owner = deposits[tokenId].owner;
         require(owner == msg.sender, 'UniswapV3Staker::transferDeposit: can only be called by deposit owner');
@@ -223,6 +229,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         address to,
         bytes memory data
     ) external override {
+        console.log("WITHDRAWING TOKEN");
         Deposit memory deposit = deposits[tokenId];
         require(deposit.numberOfStakes == 0, 'UniswapV3Staker::withdrawToken: cannot withdraw token while staked');
         require(deposit.owner == msg.sender, 'UniswapV3Staker::withdrawToken: only owner can withdraw token');
@@ -235,6 +242,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
     /// @inheritdoc IUniversalV3Staker
     function stakeToken(IncentiveKey memory key, uint256 tokenId) external override {
+        console.log("STAKING TOKEN");
         require(deposits[tokenId].owner == msg.sender, 'UniswapV3Staker::stakeToken: only owner can stake token');
 
         _stakeToken(key, tokenId);
@@ -242,6 +250,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
     /// @inheritdoc IUniversalV3Staker
     function unstakeToken(IncentiveKey memory key, uint256 tokenId) external override {
+        console.log("UNSTAKING TOKEN");
         Deposit memory deposit = deposits[tokenId];
         // anyone can call unstakeToken if the block time is after the end time of the incentive
         if (block.timestamp < key.endTime) {
@@ -284,6 +293,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         // liquidity casting uint128 => uint208
         _cumulativeLiquidityLower.remove(_cfNbits, tickLowerShifted, uint208(liquidity));
         _cumulativeLiquidityUpper.remove(_cfNbits, tickUpperShifted, uint208(liquidity));
+        console.log("Remove from Lower/Upper %s/%s, %s", tickLowerShifted,tickUpperShifted, uint208(liquidity));
         emit TokenUnstaked(tokenId, incentiveId);
     }
 
@@ -293,6 +303,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         address to,
         uint256 amountRequested
     ) external override returns (uint256 reward) {
+        console.log("CLAIMING REWARD");
         reward = rewards[rewardToken][msg.sender];
         if (amountRequested != 0 && amountRequested < reward) {
             reward = amountRequested;
@@ -311,6 +322,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         override
         returns (uint256 reward, uint160)
     {
+        console.log("getRewardInfo");
         bytes32 incentiveId = UniversalIncentiveId.compute(key);
 
         (, uint128 liquidity, uint256 rewardDebt) = stakes(tokenId, incentiveId);
@@ -321,13 +333,16 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint24 tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
         uint24 tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
         uint256 latestReward = _calculateReward(liquidity, tickLowerShifted, tickUpperShifted);
+        console.log("liquidity %s rewardDebt %s latestReward %s", liquidity, rewardDebt, latestReward);
         reward = latestReward - rewardDebt;
+        console.log("Reward %s", reward);
         require(reward <= latestReward, 'UniswapV3Staker::getRewardInfo: overflow');
         return (reward, 0);
     }
 
     /// @inheritdoc IUniversalV3Staker
     function updatePrice(IncentiveKey memory key) external override {
+        console.log("UPDATING PRICE");
         require(block.timestamp >= key.startTime, 'UniswapV3Staker::updatePrice: incentive not started');
         require(block.timestamp < key.endTime, 'UniswapV3Staker::updatePrice: incentive ended');
 
@@ -339,6 +354,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
         (, int24 currentTick, , , , , ) = key.pool.slot0();
         _updatePrice(block.timestamp, currentTick, key.rewardCalc);
+        console.log("PRICE UPDATEEEEEE");
     }
 
     /// @dev Update can be called either externally or through staking / unstaking
@@ -347,8 +363,10 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         int24 tick,
         IRewardCalculator rewardCalc
     ) private {
+        console.log("_UPDATE PRICE");
         require(timestamp >= rewardUpdatedAt, 'UniswapV3Staker::updatePrice: invalid timestamp');
         uint256 calculatedRewards = rewardCalc.getRewards(rewardUpdatedAt + 1, timestamp);
+        console.log("Reward before update %s", calculatedRewards);
         if (calculatedRewards == 0) return;
 
         rewardUpdatedAt = timestamp;
@@ -358,19 +376,24 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
         uint208 liquidityLower = _cumulativeLiquidityLower.get(_cfNbits, tickBeforeUpdate);
         uint208 liquidityUpper = _cumulativeLiquidityUpper.get(_cfNbits, tickBeforeUpdate);
+        console.log("GET From Lower %s, %s", tickBeforeUpdate, liquidityLower);
+        console.log("GET From Upper %s, %s", tickBeforeUpdate, liquidityUpper);
         uint208 liquidity = liquidityLower - liquidityUpper;
         require(liquidity <= liquidityLower, 'UniswapV3Staker::updatePrice: overflow');
         if (liquidity == 0) return;
 
         // avoid underflow
         uint256 rewardShareX64 = (calculatedRewards << 64) / uint256(liquidity);
+        console.log("Reward Before %s, After %s,  Liquidity %s", calculatedRewards, rewardShareX64, liquidity);
         require(uint256(uint208(rewardShareX64)) == rewardShareX64, 'UniswapV3Staker::updatePrice: casting');
         // i.e. using  208 - 64 = 144 bits to store shares, with the max to be  2 ^ 144 - 1 = ~10^43, thus 10^25 ether
         _cumulativeAccumulatedRewardsX64.add(_cfNbits, tickBeforeUpdate + 1, uint208(rewardShareX64));
+        console.log("ADD TO CARF %s %s", tickBeforeUpdate + 1, uint208(rewardShareX64));
     }
 
     /// @dev Stakes a deposited token without doing an ownership check
     function _stakeToken(IncentiveKey memory key, uint256 tokenId) private {
+        console.log("_STAKE TOKEN");
         require(block.timestamp >= key.startTime, 'UniswapV3Staker::stakeToken: incentive not started');
         require(block.timestamp < key.endTime, 'UniswapV3Staker::stakeToken: incentive ended');
 
@@ -421,6 +444,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         // liquidity casting uint128 => uint208
         _cumulativeLiquidityLower.add(_cfNbits, tickLowerShifted, uint208(liquidity));
         _cumulativeLiquidityUpper.add(_cfNbits, tickUpperShifted, uint208(liquidity));
+        console.log("ADD TO Lower/UPPER %s/%s, Liquidity %s", tickLowerShifted, tickUpperShifted, liquidity);
 
         emit TokenStaked(tokenId, incentiveId, liquidity);
     }
@@ -431,15 +455,22 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint24 tickLowerShifted,
         uint24 tickUpperShifted
     ) private view returns (uint256 reward) {
+        console.log("_Calculate Reward");
         uint208 rshareLowerX64 = _cumulativeAccumulatedRewardsX64.get(_cfNbits, tickLowerShifted);
+        console.log("GET FROM CARF LOWER %s %s", tickLowerShifted, rshareLowerX64);
         uint208 rshareUpperX64 = _cumulativeAccumulatedRewardsX64.get(_cfNbits, tickUpperShifted);
+        console.log("GET FROM CARF UPPER %s %s", tickLowerShifted, rshareUpperX64);
         uint208 rshareX64 = rshareUpperX64 - rshareLowerX64;
+//        console.log("Lower %s, Upper %s, rshare %s", rshareLowerX64, rshareUpperX64, rshareX64);
         require(rshareX64 <= rshareUpperX64, 'UniswapV3Staker::calculateReward: sub overflow');
         uint256 rewardX64 = uint256(liquidity) * uint256(rshareX64);
+        if (rewardX64 == 0) return 0;
         require(
             rewardX64 / uint256(rshareUpperX64) == uint256(liquidity),
             'UniswapV3Staker::calculateReward: mul overflow'
         );
         reward = rewardX64 >> 64;
+        console.log("Liquidity %s, rshare64 %s", liquidity, rshareX64);
+        console.log("reward64 %s, reward %s", rewardX64, reward);
     }
 }
