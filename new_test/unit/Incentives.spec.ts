@@ -228,9 +228,7 @@ describe('unit/Incentives', async () => {
 
         await Time.set(timestamps.endTime + 1)
         await subject({})
-        const { totalRewardUnclaimed, numberOfStakes } = await context.staker.incentives(
-          incentiveId
-        )
+        const { totalRewardUnclaimed, numberOfStakes } = await context.staker.incentives(incentiveId)
         expect(totalRewardUnclaimed).to.eq(0)
         expect(numberOfStakes).to.eq(0)
       })

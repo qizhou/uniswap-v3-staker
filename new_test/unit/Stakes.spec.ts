@@ -319,7 +319,6 @@ describe('unit/Stakes', () => {
     })
 
     it('returns correct rewardAmount and secondsInsideX128 for the position', async () => {
-
       await provider.send('evm_mine', [timestamps.startTime + 100])
 
       const rewardInfo = await context.staker.connect(lpUser0).getRewardInfo(stakeIncentiveKey, tokenId)
