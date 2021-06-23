@@ -1,5 +1,5 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`unit/Incentives #createIncentive works and has gas cost 1`] = `63640`;
+exports[`unit/Incentives #createIncentive works and has gas cost 1`] = `60428`;
 
-exports[`unit/Incentives #endIncentive works and has gas cost 1`] = `39270`;
+exports[`unit/Incentives #endIncentive works and has gas cost 1`] = `36059`;

@@ -108,7 +108,6 @@ describe('unit/Incentives', async () => {
 
         const incentive = await context.staker.incentives(incentiveId)
         expect(incentive.totalRewardUnclaimed).to.equal(totalReward)
-        // expect(incentive.totalSecondsClaimedX128).to.equal(BN(0))
       })
 
       it('has gas cost', async () => {
@@ -233,7 +232,6 @@ describe('unit/Incentives', async () => {
           incentiveId
         )
         expect(totalRewardUnclaimed).to.eq(0)
-        // expect(totalSecondsClaimedX128).to.eq(0)
         expect(numberOfStakes).to.eq(0)
       })
 
