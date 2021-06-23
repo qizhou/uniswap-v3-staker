@@ -9,6 +9,8 @@ import './libraries/NFTPositionInfo.sol';
 import './libraries/CumulativeFunction.sol';
 import './libraries/UniversalIncentiveId.sol';
 
+import '@openzeppelin/contracts/math/SafeMath.sol';
+
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol';
@@ -21,10 +23,11 @@ import '@uniswap/v3-periphery/contracts/base/Multicall.sol';
 
 /// @title Universal staking interface for Uniswap V3
 contract UniversalV3Staker is IUniversalV3Staker, Multicall {
+    using SafeMath for uint256;
+
     /// @notice Represents a staking incentive
     struct Incentive {
         uint256 totalRewardUnclaimed;
-        uint160 totalSecondsClaimedX128;
         uint96 numberOfStakes;
     }
 
@@ -41,6 +44,8 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint160 secondsPerLiquidityInsideInitialX128;
         uint96 liquidityNoOverflow;
         uint128 liquidityIfOverflow;
+        // TODO: uint128 for struct packing?
+        uint256 rewardDebt;
     }
 
     /// @inheritdoc IUniversalV3Staker
@@ -82,7 +87,11 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         public
         view
         override
-        returns (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity)
+        returns (
+            uint160 secondsPerLiquidityInsideInitialX128,
+            uint128 liquidity,
+            uint256 rewardDebt
+        )
     {
         Stake storage stake = _stakes[tokenId][incentiveId];
         secondsPerLiquidityInsideInitialX128 = stake.secondsPerLiquidityInsideInitialX128;
@@ -90,6 +99,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         if (liquidity == type(uint96).max) {
             liquidity = stake.liquidityIfOverflow;
         }
+        rewardDebt = stake.rewardDebt;
     }
 
     /// @inheritdoc IUniversalV3Staker
@@ -143,11 +153,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
             'UniswapV3Staker::createIncentive: incentive already exists'
         );
 
-        incentives[incentiveId] = Incentive({
-            totalRewardUnclaimed: reward,
-            totalSecondsClaimedX128: 0,
-            numberOfStakes: 0
-        });
+        incentives[incentiveId] = Incentive({totalRewardUnclaimed: reward, numberOfStakes: 0});
 
         TransferHelper.safeTransferFrom(address(key.rewardToken), msg.sender, address(this), reward);
 
@@ -172,8 +178,6 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         // issue the refund
         incentive.totalRewardUnclaimed = 0;
         TransferHelper.safeTransfer(address(key.rewardToken), key.refundee, refund);
-
-        // note we never clear totalSecondsClaimedX128
 
         emit IncentiveEnded(incentiveId, refund);
     }
@@ -253,7 +257,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
         bytes32 incentiveId = UniversalIncentiveId.compute(key);
 
-        (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) = stakes(tokenId, incentiveId);
+        (, uint128 liquidity, uint256 rewardDebt) = stakes(tokenId, incentiveId);
 
         require(liquidity != 0, 'UniswapV3Staker::unstakeToken: stake does not exist');
 
@@ -265,23 +269,11 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         deposits[tokenId].numberOfStakes--;
         incentive.numberOfStakes--;
 
-        (, uint160 secondsPerLiquidityInsideX128, ) =
-            key.pool.snapshotCumulativesInside(deposit.tickLower, deposit.tickUpper);
-        (uint256 reward, uint160 secondsInsideX128) =
-            RewardMath.computeRewardAmount(
-                incentive.totalRewardUnclaimed,
-                incentive.totalSecondsClaimedX128,
-                key.startTime,
-                key.endTime,
-                liquidity,
-                secondsPerLiquidityInsideInitialX128,
-                secondsPerLiquidityInsideX128,
-                block.timestamp
-            );
+        uint24 tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
+        uint24 tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
+        uint256 latestReward = _calculateReward(liquidity, tickLowerShifted, tickUpperShifted);
+        uint256 reward = latestReward.sub(rewardDebt);
 
-        // if this overflows, e.g. after 2^32-1 full liquidity seconds have been claimed,
-        // reward rate will fall drastically so it's safe
-        incentive.totalSecondsClaimedX128 += secondsInsideX128;
         // reward is never greater than total reward unclaimed
         incentive.totalRewardUnclaimed -= reward;
         // this only overflows if a token has a total supply greater than type(uint256).max
@@ -292,8 +284,6 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         delete stake.liquidityNoOverflow;
         if (liquidity >= type(uint96).max) delete stake.liquidityIfOverflow;
 
-        uint24 tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
-        uint24 tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
         // liquidity casting uint128 => uint208
         _cumulativeLiquidityLower.remove(_cfNbits, tickLowerShifted, uint208(liquidity));
         _cumulativeLiquidityUpper.remove(_cfNbits, tickUpperShifted, uint208(liquidity));
@@ -322,29 +312,20 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         external
         view
         override
-        returns (uint256 reward, uint160 secondsInsideX128)
+        returns (uint256 reward, uint160)
     {
         bytes32 incentiveId = UniversalIncentiveId.compute(key);
 
-        (uint160 secondsPerLiquidityInsideInitialX128, uint128 liquidity) = stakes(tokenId, incentiveId);
+        (, uint128 liquidity, uint256 rewardDebt) = stakes(tokenId, incentiveId);
         require(liquidity > 0, 'UniswapV3Staker::getRewardInfo: stake does not exist');
 
         Deposit memory deposit = deposits[tokenId];
-        Incentive memory incentive = incentives[incentiveId];
 
-        (, uint160 secondsPerLiquidityInsideX128, ) =
-            key.pool.snapshotCumulativesInside(deposit.tickLower, deposit.tickUpper);
-
-        (reward, secondsInsideX128) = RewardMath.computeRewardAmount(
-            incentive.totalRewardUnclaimed,
-            incentive.totalSecondsClaimedX128,
-            key.startTime,
-            key.endTime,
-            liquidity,
-            secondsPerLiquidityInsideInitialX128,
-            secondsPerLiquidityInsideX128,
-            block.timestamp
-        );
+        uint24 tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
+        uint24 tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
+        uint256 latestReward = _calculateReward(liquidity, tickLowerShifted, tickUpperShifted);
+        reward = latestReward.sub(rewardDebt);
+        return (reward, 0);
     }
 
     /// @inheritdoc IUniversalV3Staker
@@ -420,26 +401,45 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
         (, uint160 secondsPerLiquidityInsideX128, ) = pool.snapshotCumulativesInside(tickLower, tickUpper);
 
+        uint24 tickLowerShifted = uint24(tickLower - TickMath.MIN_TICK + 1);
+        uint24 tickUpperShifted = uint24(tickUpper - TickMath.MIN_TICK + 1);
+        uint256 rewardDebt = _calculateReward(liquidity, tickLowerShifted, tickUpperShifted);
         if (liquidity >= type(uint96).max) {
             _stakes[tokenId][incentiveId] = Stake({
                 secondsPerLiquidityInsideInitialX128: secondsPerLiquidityInsideX128,
                 liquidityNoOverflow: type(uint96).max,
-                liquidityIfOverflow: liquidity
+                liquidityIfOverflow: liquidity,
+                rewardDebt: rewardDebt
             });
         } else {
             _stakes[tokenId][incentiveId] = Stake({
                 secondsPerLiquidityInsideInitialX128: secondsPerLiquidityInsideX128,
                 liquidityNoOverflow: uint96(liquidity),
-                liquidityIfOverflow: 0
+                liquidityIfOverflow: 0,
+                rewardDebt: rewardDebt
             });
         }
 
-        uint24 tickLowerShifted = uint24(tickLower - TickMath.MIN_TICK + 1);
-        uint24 tickUpperShifted = uint24(tickUpper - TickMath.MIN_TICK + 1);
         // liquidity casting uint128 => uint208
         _cumulativeLiquidityLower.add(_cfNbits, tickLowerShifted, uint208(liquidity));
         _cumulativeLiquidityUpper.add(_cfNbits, tickUpperShifted, uint208(liquidity));
 
         emit TokenStaked(tokenId, incentiveId, liquidity);
+    }
+
+    // @dev Calculate reward based on cumulative function records
+    function _calculateReward(
+        uint128 liquidity,
+        uint24 tickLowerShifted,
+        uint24 tickUpperShifted
+    ) private view returns (uint256 reward) {
+        uint208 rshareLowerX64 = _cumulativeAccumulatedRewardsX64.get(_cfNbits, tickLowerShifted);
+        uint208 rshareUpperX64 = _cumulativeAccumulatedRewardsX64.get(_cfNbits, tickUpperShifted);
+        uint208 rshareX64 = rshareUpperX64 - rshareLowerX64;
+        require(rshareX64 <= rshareUpperX64, 'UniswapV3Staker::calculateReward: sub overflow');
+        uint256 rewardX64 = uint256(liquidity).mul(uint256(rshareX64));
+        if (rewardX64 == 0) return 0;
+
+        reward = rewardX64 >> 64;
     }
 }

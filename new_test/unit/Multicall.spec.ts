@@ -176,8 +176,8 @@ describe('unit/Multicall', () => {
           tokenId,
         ]),
         context.staker.interface.encodeFunctionData('withdrawToken', [tokenId, lpUser0.address, '0x']),
-        context.staker.interface.encodeFunctionData('claimReward', [context.token0.address, lpUser0.address, BN('0')]),
-        context.staker.interface.encodeFunctionData('claimReward', [context.token1.address, lpUser0.address, BN('0')]),
+        context.staker.interface.encodeFunctionData('claimReward', [context.token0.address, lpUser0.address, BN('1')]),
+        context.staker.interface.encodeFunctionData('claimReward', [context.token1.address, lpUser0.address, BN('1')]),
       ])
     await snapshotGasCost(tx)
   })
