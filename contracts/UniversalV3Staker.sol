@@ -436,6 +436,8 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint208 rshareX64 = rshareUpperX64 - rshareLowerX64;
         require(rshareX64 <= rshareUpperX64, 'UniswapV3Staker::calculateReward: sub overflow');
         uint256 rewardX64 = uint256(liquidity) * uint256(rshareX64);
+        if (rewardX64 == 0) return 0;
+
         require(
             rewardX64 / uint256(rshareUpperX64) == uint256(liquidity),
             'UniswapV3Staker::calculateReward: mul overflow'
