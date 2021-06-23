@@ -9,7 +9,7 @@ import './libraries/NFTPositionInfo.sol';
 import './libraries/CumulativeFunction.sol';
 import './libraries/UniversalIncentiveId.sol';
 
-import "@openzeppelin/contracts/math/SafeMath.sol";
+import '@openzeppelin/contracts/math/SafeMath.sol';
 
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
@@ -23,7 +23,6 @@ import '@uniswap/v3-periphery/contracts/base/Multicall.sol';
 
 /// @title Universal staking interface for Uniswap V3
 contract UniversalV3Staker is IUniversalV3Staker, Multicall {
-
     using SafeMath for uint256;
 
     /// @notice Represents a staking incentive
