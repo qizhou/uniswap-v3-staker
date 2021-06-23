@@ -9,6 +9,8 @@ import './libraries/NFTPositionInfo.sol';
 import './libraries/CumulativeFunction.sol';
 import './libraries/UniversalIncentiveId.sol';
 
+import "@openzeppelin/contracts/math/SafeMath.sol";
+
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol';
 import '@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol';
 import '@uniswap/v3-core/contracts/interfaces/IERC20Minimal.sol';
@@ -21,6 +23,9 @@ import '@uniswap/v3-periphery/contracts/base/Multicall.sol';
 
 /// @title Universal staking interface for Uniswap V3
 contract UniversalV3Staker is IUniversalV3Staker, Multicall {
+
+    using SafeMath for uint256;
+
     /// @notice Represents a staking incentive
     struct Incentive {
         uint256 totalRewardUnclaimed;
@@ -268,8 +273,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint24 tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
         uint24 tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
         uint256 latestReward = _calculateReward(liquidity, tickLowerShifted, tickUpperShifted);
-        uint256 reward = latestReward - rewardDebt;
-        require(reward <= latestReward, 'UniswapV3Staker::getRewardInfo: overflow');
+        uint256 reward = latestReward.sub(rewardDebt);
 
         // reward is never greater than total reward unclaimed
         incentive.totalRewardUnclaimed -= reward;
@@ -321,8 +325,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint24 tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
         uint24 tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
         uint256 latestReward = _calculateReward(liquidity, tickLowerShifted, tickUpperShifted);
-        reward = latestReward - rewardDebt;
-        require(reward <= latestReward, 'UniswapV3Staker::getRewardInfo: overflow');
+        reward = latestReward.sub(rewardDebt);
         return (reward, 0);
     }
 
@@ -435,13 +438,9 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint208 rshareUpperX64 = _cumulativeAccumulatedRewardsX64.get(_cfNbits, tickUpperShifted);
         uint208 rshareX64 = rshareUpperX64 - rshareLowerX64;
         require(rshareX64 <= rshareUpperX64, 'UniswapV3Staker::calculateReward: sub overflow');
-        uint256 rewardX64 = uint256(liquidity) * uint256(rshareX64);
+        uint256 rewardX64 = uint256(liquidity).mul(uint256(rshareX64));
         if (rewardX64 == 0) return 0;
 
-        require(
-            rewardX64 / uint256(rshareUpperX64) == uint256(liquidity),
-            'UniswapV3Staker::calculateReward: mul overflow'
-        );
         reward = rewardX64 >> 64;
     }
 }
