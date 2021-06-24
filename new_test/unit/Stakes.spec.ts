@@ -315,7 +315,6 @@ describe('unit/Stakes', () => {
 
       await Time.set(timestamps.startTime)
       await context.staker.connect(lpUser0).stakeToken(stakeIncentiveKey, tokenId)
-      await context.staker.connect(lpUser0).updatePrice(stakeIncentiveKey)
     })
 
     it('returns correct rewardAmount and secondsInsideX128 for the position', async () => {
