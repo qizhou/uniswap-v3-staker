@@ -334,7 +334,7 @@ describe('unit/Stakes', () => {
 
       const rewardInfo = await context.staker.connect(lpUser0).getRewardInfo(stakeIncentiveKey, tokenId)
       // @ts-ignore
-      expect(rewardInfo.reward).to.be.eq(updatedReward, "Same as updatePrice")
+      expect(rewardInfo.reward).to.be.eq(updatedReward, 'Same as updatePrice')
     })
 
     it('returns nonzero for incentive after end time', async () => {
@@ -573,7 +573,7 @@ describe('unit/Stakes', () => {
       })
 
       it('updates the reward available for the context.staker', async () => {
-        await Time.setAndMine(await blockTimestamp() + 1)
+        await Time.setAndMine((await blockTimestamp()) + 1)
         const rewardsAccured = await context.staker.rewards(context.rewardToken.address, lpUser0.address)
         await subject(lpUser0) //unstake
         expect(await context.staker.rewards(context.rewardToken.address, lpUser0.address)).to.be.gt(rewardsAccured)
