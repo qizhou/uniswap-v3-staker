@@ -281,6 +281,7 @@ describe('unit/Stakes', () => {
   describe('#getRewardInfo', () => {
     let incentiveId: string
     let stakeIncentiveKey: ContractParams.IncentiveKey
+    let updatedReward: BigNumber
 
     beforeEach('set up incentive and stake', async () => {
       timestamps = makeTimestamps((await blockTimestamp()) + 1_000)
@@ -317,13 +318,23 @@ describe('unit/Stakes', () => {
       await context.staker.connect(lpUser0).stakeToken(stakeIncentiveKey, tokenId)
     })
 
-    it('returns correct rewardAmount and secondsInsideX128 for the position', async () => {
-      await provider.send('evm_mine', [timestamps.startTime + 100])
+    it('returns correct rewardAmount for the position after updatePrice', async () => {
+      await context.staker.connect(lpUser0).updatePrice(stakeIncentiveKey)
+      await provider.send('evm_mine', [timestamps.startTime + 101])
 
       const rewardInfo = await context.staker.connect(lpUser0).getRewardInfo(stakeIncentiveKey, tokenId)
 
+      updatedReward = rewardInfo.reward
       // @ts-ignore
-      expect(rewardInfo.reward).to.be.closeTo(BNe(1, 19), BN(1))
+      expect(updatedReward).to.be.eq(BNe18(1))
+    })
+
+    it('returns correct rewardAmount for the position without updatePrice', async () => {
+      await provider.send('evm_mine', [timestamps.startTime + 101])
+
+      const rewardInfo = await context.staker.connect(lpUser0).getRewardInfo(stakeIncentiveKey, tokenId)
+      // @ts-ignore
+      expect(rewardInfo.reward).to.be.eq(updatedReward, "Same as updatePrice")
     })
 
     it('returns nonzero for incentive after end time', async () => {
@@ -562,8 +573,9 @@ describe('unit/Stakes', () => {
       })
 
       it('updates the reward available for the context.staker', async () => {
+        await Time.setAndMine(await blockTimestamp() + 1)
         const rewardsAccured = await context.staker.rewards(context.rewardToken.address, lpUser0.address)
-        await subject(lpUser0)
+        await subject(lpUser0) //unstake
         expect(await context.staker.rewards(context.rewardToken.address, lpUser0.address)).to.be.gt(rewardsAccured)
       })
 

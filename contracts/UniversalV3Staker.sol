@@ -320,7 +320,8 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         (, uint128 liquidity, uint256 rewardDebt) = stakes(tokenId, incentiveId);
         require(liquidity > 0, 'UniswapV3Staker::getRewardInfo: stake does not exist');
 
-        (, int24 currentTick, , , , , ) = key.pool.slot0();
+        (, int24 _currentTick, , , , , ) = key.pool.slot0();
+        uint24 currentTick = uint24(_currentTick - TickMath.MIN_TICK + 1);
 
         Deposit memory deposit = deposits[tokenId];
 
@@ -332,13 +333,9 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         uint256 timestamp = block.timestamp;
 
         uint256 calculatedRewards = rewardCalc.getRewards(rewardUpdatedAt + 1, timestamp);
-        if (calculatedRewards == 0) return (0, 0);
 
-        uint256 rewardShareX64 = (calculatedRewards << 64) / uint256(liquidity);
-
-        if (currentTick >= deposit.tickLower && currentTick <= deposit.tickUpper) {
-            uint256 calculatedRewards = rewardCalc.getRewards(rewardUpdatedAt + 1, timestamp);
-            reward += calculatedRewards;
+        if (currentTick >= tickLowerShifted && currentTick <= tickUpperShifted) {
+            reward += calculatedRewards ;
         }
 
         return (reward, 0);
