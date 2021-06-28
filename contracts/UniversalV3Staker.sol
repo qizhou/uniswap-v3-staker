@@ -314,27 +314,33 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         override
         returns (uint256 reward, uint160)
     {
-        bytes32 incentiveId = UniversalIncentiveId.compute(key);
-        IRewardCalculator rewardCalc = key.rewardCalc;
-
-        (, uint128 liquidity, uint256 rewardDebt) = stakes(tokenId, incentiveId);
-        require(liquidity > 0, 'UniswapV3Staker::getRewardInfo: stake does not exist');
 
         (, int24 _currentTick, , , , , ) = key.pool.slot0();
         uint24 currentTick = uint24(_currentTick - TickMath.MIN_TICK + 1);
 
-        Deposit memory deposit = deposits[tokenId];
+        uint128 liquidity;
+        uint24 tickLowerShifted;
+        uint24 tickUpperShifted;
+        {
+            uint256 rewardDebt;
+            Deposit memory deposit = deposits[tokenId];
+            (, liquidity, rewardDebt) = stakes(tokenId, UniversalIncentiveId.compute(key));
+            require(liquidity > 0, 'UniswapV3Staker::getRewardInfo: stake does not exist');
+            tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
+            tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
+            reward = _calculateReward(liquidity, tickLowerShifted, tickUpperShifted).sub(rewardDebt);
 
-        uint24 tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
-        uint24 tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
-        uint256 latestReward = _calculateReward(liquidity, tickLowerShifted, tickUpperShifted);
-        reward = latestReward.sub(rewardDebt);
-
-        uint256 timestamp = block.timestamp;
+        }
 
         if (currentTick >= tickLowerShifted && currentTick <= tickUpperShifted) {
-            uint256 calculatedRewards = rewardCalc.getRewards(rewardUpdatedAt + 1, timestamp);
-            reward = reward.add(calculatedRewards);
+            uint24 tickBeforeUpdate = uint24(lastTick - TickMath.MIN_TICK + 1);
+            uint208 liquidityLower = _cumulativeLiquidityLower.get(_cfNbits, tickBeforeUpdate);
+            uint208 liquidityUpper = _cumulativeLiquidityUpper.get(_cfNbits, tickBeforeUpdate);
+            uint208 totalLiq = liquidityLower - liquidityUpper;
+            uint256 calculatedRewards = key.rewardCalc.getRewards(rewardUpdatedAt + 1, block.timestamp);
+            uint256 rewardShareX64 = (calculatedRewards << 64).div(uint256(totalLiq));
+            uint256 rewardX64 = uint256(liquidity).mul(uint256(rewardShareX64));
+            reward = reward.add(rewardX64 >> 64);
         }
 
         return (reward, 0);
