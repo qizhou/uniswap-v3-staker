@@ -314,17 +314,34 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         override
         returns (uint256 reward, uint160)
     {
-        bytes32 incentiveId = UniversalIncentiveId.compute(key);
+        (, int24 _currentTick, , , , , ) = key.pool.slot0();
+        uint24 currentTick = uint24(_currentTick - TickMath.MIN_TICK + 1);
 
-        (, uint128 liquidity, uint256 rewardDebt) = stakes(tokenId, incentiveId);
-        require(liquidity > 0, 'UniswapV3Staker::getRewardInfo: stake does not exist');
+        uint128 liquidity;
+        uint24 tickLowerShifted;
+        uint24 tickUpperShifted;
+        {
+            uint256 rewardDebt;
+            Deposit memory deposit = deposits[tokenId];
+            (, liquidity, rewardDebt) = stakes(tokenId, UniversalIncentiveId.compute(key));
+            require(liquidity > 0, 'UniswapV3Staker::getRewardInfo: stake does not exist');
+            tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
+            tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
+            reward = _calculateReward(liquidity, tickLowerShifted, tickUpperShifted).sub(rewardDebt);
+        }
 
-        Deposit memory deposit = deposits[tokenId];
+        if (currentTick >= tickLowerShifted && currentTick <= tickUpperShifted) {
+            uint24 lastTickShifted = uint24(lastTick - TickMath.MIN_TICK + 1);
+            uint208 liquidityLower = _cumulativeLiquidityLower.get(_cfNbits, lastTickShifted);
+            uint208 liquidityUpper = _cumulativeLiquidityUpper.get(_cfNbits, lastTickShifted);
+            uint208 totalLiq = liquidityLower - liquidityUpper;
+            require(totalLiq <= liquidityLower, 'UniswapV3Staker::gerRewardInfo: overflow');
+            uint256 calculatedRewards = key.rewardCalc.getRewards(rewardUpdatedAt + 1, block.timestamp);
+            uint256 rewardShareX64 = calculatedRewards.mul(2**64).div(uint256(totalLiq));
+            uint256 rewardX64 = uint256(liquidity).mul(rewardShareX64);
+            reward = reward.add(rewardX64.div(2**64));
+        }
 
-        uint24 tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
-        uint24 tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
-        uint256 latestReward = _calculateReward(liquidity, tickLowerShifted, tickUpperShifted);
-        reward = latestReward.sub(rewardDebt);
         return (reward, 0);
     }
 
@@ -365,7 +382,7 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         if (liquidity == 0) return;
 
         // avoid underflow
-        uint256 rewardShareX64 = (calculatedRewards << 64) / uint256(liquidity);
+        uint256 rewardShareX64 = calculatedRewards.mul(2**64).div(uint256(liquidity));
         require(uint256(uint208(rewardShareX64)) == rewardShareX64, 'UniswapV3Staker::updatePrice: casting');
         // i.e. using  208 - 64 = 144 bits to store shares, with the max to be  2 ^ 144 - 1 = ~10^43, thus 10^25 ether
         _cumulativeAccumulatedRewardsX64.add(_cfNbits, tickBeforeUpdate + 1, uint208(rewardShareX64));
