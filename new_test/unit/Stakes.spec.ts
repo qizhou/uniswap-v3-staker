@@ -326,7 +326,7 @@ describe('unit/Stakes', () => {
 
       updatedReward = rewardInfo.reward
       // @ts-ignore
-      expect(updatedReward).to.be.eq(BNe18(1))
+      expect(updatedReward).to.be.eq(BNe18(1).sub(1)) // Accuracy tolerance of 1 in 1e18
     })
 
     it('returns correct rewardAmount for the position without updatePrice', async () => {
