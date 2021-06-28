@@ -314,7 +314,6 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
         override
         returns (uint256 reward, uint160)
     {
-
         (, int24 _currentTick, , , , , ) = key.pool.slot0();
         uint24 currentTick = uint24(_currentTick - TickMath.MIN_TICK + 1);
 
@@ -329,7 +328,6 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
             tickLowerShifted = uint24(deposit.tickLower - TickMath.MIN_TICK + 1);
             tickUpperShifted = uint24(deposit.tickUpper - TickMath.MIN_TICK + 1);
             reward = _calculateReward(liquidity, tickLowerShifted, tickUpperShifted).sub(rewardDebt);
-
         }
 
         if (currentTick >= tickLowerShifted && currentTick <= tickUpperShifted) {
