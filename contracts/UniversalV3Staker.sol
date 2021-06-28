@@ -332,9 +332,8 @@ contract UniversalV3Staker is IUniversalV3Staker, Multicall {
 
         uint256 timestamp = block.timestamp;
 
-        uint256 calculatedRewards = rewardCalc.getRewards(rewardUpdatedAt + 1, timestamp);
-
         if (currentTick >= tickLowerShifted && currentTick <= tickUpperShifted) {
+            uint256 calculatedRewards = rewardCalc.getRewards(rewardUpdatedAt + 1, timestamp);
             reward = reward.add(calculatedRewards);
         }
 
